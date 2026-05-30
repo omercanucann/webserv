@@ -1,0 +1,67 @@
+# ══════════════════════════════════════════════════════════════════════
+# Webserv Makefile
+# C++98, -Wall -Wextra -Werror
+# ══════════════════════════════════════════════════════════════════════
+
+NAME    := webserv
+CXX     := c++
+CXXFLAGS := -Wall -Wextra -Werror -std=c++98
+
+INCLUDE := -I Network_Server -I utils
+
+SRCDIR  := .
+OBJDIR  := obj
+
+SRCS    :=  main.cpp                      \
+            Network_Server/Socketbinder.cpp   \
+            Network_Server/Pollreactor.cpp    \
+            Network_Server/Reactorbridge.cpp  \
+            Network_Server/Signalguard.cpp    \
+            utils/ft_memset.cpp
+
+OBJS    := $(patsubst %.cpp, $(OBJDIR)/%.o, $(notdir $(SRCS)))
+
+# ── Renkler (isteğe bağlı, terminalde güzel görünür) ─────────────────
+GREEN  := \033[0;32m
+RESET  := \033[0m
+
+# ── Hedefler ─────────────────────────────────────────────────────────
+
+all: $(NAME)
+
+$(NAME): $(OBJS)
+	@$(CXX) $(CXXFLAGS) $(OBJS) -o $(NAME)
+	@echo "$(GREEN)✓ $(NAME) derlendi$(RESET)"
+
+$(OBJDIR)/main.o: main.cpp | $(OBJDIR)
+	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
+	@echo "  CC $<"
+
+$(OBJDIR)/%.o: Network_Server/%.cpp | $(OBJDIR)
+	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
+	@echo "  CC $<"
+
+$(OBJDIR)/%.o: utils/%.cpp | $(OBJDIR)
+	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
+	@echo "  CC $<"
+$(OBJDIR):
+	@mkdir -p $(OBJDIR)
+
+clean:
+	@rm -rf $(OBJDIR)
+	@echo "$(GREEN)✓ obj/ temizlendi$(RESET)"
+
+fclean: clean
+	@rm -f $(NAME)
+	@echo "$(GREEN)✓ $(NAME) silindi$(RESET)"
+
+re: fclean all
+
+# Yeniden linklemeyi önle: header değişince sadece bağımlı .o yeniden derlenir
+$(OBJDIR)/Socketbinder.o:  Network_Server/Socketbinder.hpp Network_Server/Nettypes.hpp
+$(OBJDIR)/Pollreactor.o:   Network_Server/Pollreactor.hpp Network_Server/Connectionslot.hpp
+$(OBJDIR)/Reactorbridge.o: Network_Server/Reactorbridge.hpp Network_Server/Pollreactor.hpp
+$(OBJDIR)/Signalguard.o:   Network_Server/Signalguard.hpp
+$(OBJDIR)/ft_memset.o:     utils/Utils.hpp
+
+.PHONY: all clean fclean re
