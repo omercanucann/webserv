@@ -60,14 +60,16 @@ void ReactorBridge::_on_data(ConnectionSlot &slot) // PollReactor'dan gelen veri
         return;
     }
  
-    _handler.handle_data(slot.self_index, slot); // IRequestHandler'ın handle_data fonksiyonunu çağırarak slot.readbuffer'ındaki verileri işler ve gerekirse slot.writebuffer'ına yanıt ekler,
-    // bu fonksiyon true döndürürse slot.writebuffer'ındaki verilerin gönderilmesi gerektiği anlamına gelir,
+    if (_handler.handle_data(slot.self_index, slot))
+        _reactor.queue_response(slot.self_index, slot.writebuffer);
 }
  
 void ReactorBridge::_on_write(ConnectionSlot &slot) // PollReactor'dan gelen yazma olaylarını işler, bu fonksiyon genellikle slot.writebuffer'ındaki verilerin gönderilmesi tamamlandığında çağrılır, 
 // bu noktada yazma işlemi tamamlanmış olur ve gerekirse IRequestHandler'ın handle_write gibi bir fonksiyonunu çağırarak yazma işlemi tamamlandığını bildirebilir
 {
     std::cout << "[ReactorBridge] Yanit tamamlandi: slot[" << slot.self_index << "] fd=" << slot.fd << std::endl;
+
+    slot.state = ConnectState_CLOSING;
 }
  
 void ReactorBridge::_on_close(ConnectionSlot &slot) // PollReactor'dan gelen kapatma olaylarını işler, bu fonksiyon genellikle IRequestHandler'ın handle_close fonksiyonunu çağırarak slot_index ile ilişkili kaynakları temizlemek 

@@ -7,7 +7,7 @@ NAME    := webserv
 CXX     := c++
 CXXFLAGS := -Wall -Wextra -Werror -std=c++98
 
-INCLUDE := -I Network_Server -I utils
+INCLUDE := -I Network_Server -I utils -I Http
 
 SRCDIR  := .
 OBJDIR  := obj
@@ -17,7 +17,13 @@ SRCS    :=  main.cpp                      \
             Network_Server/Pollreactor.cpp    \
             Network_Server/Reactorbridge.cpp  \
             Network_Server/Signalguard.cpp    \
-            utils/ft_memset.cpp
+            utils/ft_memset.cpp \
+			Http/HttpParser.cpp \
+			Http/HttpRequest.cpp \
+			Http/HttpRequestHandler.cpp \
+			Http/HttpResponse.cpp \
+			Http/MimeTypes.cpp \
+			Http/StatusCode.cpp \
 
 OBJS    := $(patsubst %.cpp, $(OBJDIR)/%.o, $(notdir $(SRCS)))
 
@@ -44,6 +50,11 @@ $(OBJDIR)/%.o: Network_Server/%.cpp | $(OBJDIR)
 $(OBJDIR)/%.o: utils/%.cpp | $(OBJDIR)
 	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
 	@echo "  CC $<"
+
+$(OBJDIR)/%.o: Http/%.cpp | $(OBJDIR)
+	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
+	@echo "  CC $<"
+
 $(OBJDIR):
 	@mkdir -p $(OBJDIR)
 
