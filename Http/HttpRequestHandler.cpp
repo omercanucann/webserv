@@ -128,6 +128,27 @@ bool HttpRequestHandler::_isRequestComplete(const std::string &rawRequest) const
     return true;
 }
 
+std::string HttpRequestHandler::_resolveGetPath(const std::string &requestPath) const
+{
+    std::string filePath;
+    std::string indexPath;
+
+    filePath = _buildFilePath(requestPath);
+
+    if (_isDirectory(filePath))
+    {
+        if (!filePath.empty() && filePath[filePath.length() - 1] != '/')
+            filePath += "/";
+
+        indexPath = filePath + "index.html";
+
+        if (_fileExists(indexPath) && !_isDirectory(indexPath))
+            return indexPath;
+    }
+
+    return filePath;
+}
+
 HttpResponse HttpRequestHandler::_handleGet(const HttpRequest &request)
 {
     HttpResponse response;
@@ -135,7 +156,7 @@ HttpResponse HttpRequestHandler::_handleGet(const HttpRequest &request)
     std::string body;
     std::string contentType;
 
-    filePath = _buildFilePath(request.getPath());
+    filePath = _resolveGetPath(request.getPath());
 
     if (!_fileExists(filePath))
         return HttpResponse::makeErrorResponse(404);
@@ -143,9 +164,8 @@ HttpResponse HttpRequestHandler::_handleGet(const HttpRequest &request)
     if (_isDirectory(filePath))
         return HttpResponse::makeErrorResponse(403);
 
-    body = _readFile(filePath);
-    if (body.empty())
-        return HttpResponse::makeErrorResponse(500);
+    if (!_readFile(filePath, body))
+        return HttpResponse::makeErrorResponse(403);
 
     contentType = _mimeTypes.getMimeType(filePath);
 
@@ -196,19 +216,26 @@ bool HttpRequestHandler::_isMethodAllowed(const std::string &method) const
     return false;
 }
 
-std::string HttpRequestHandler::_readFile(const std::string &path) const
+bool HttpRequestHandler::_readFile(const std::string &path, std::string &out) const
 {
     std::ifstream file;
     std::ostringstream content;
 
     file.open(path.c_str(), std::ios::in | std::ios::binary);
     if (!file.is_open())
-        return "";
+        return false;
 
     content << file.rdbuf();
-    file.close();
 
-    return content.str();
+    if (file.bad())
+    {
+        file.close();
+        return false;
+    }
+
+    file.close();
+    out = content.str();
+    return true;
 }
 
 bool HttpRequestHandler::_isDirectory(const std::string &path) const

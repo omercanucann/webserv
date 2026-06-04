@@ -37,8 +37,9 @@ class HttpRequestHandler : public IRequestHandler
         bool        _isMethodAllowed(const std::string &method) const;
         bool        _isDirectory(const std::string &path) const;
         bool        _fileExists(const std::string &path) const;
-        std::string _readFile(const std::string &path) const;
+        bool        _readFile(const std::string &path, std::string &out) const;
         std::string _buildFilePath(const std::string &requestPath) const;
+        std::string _resolveGetPath(const std::string &requestPath) const;
 };
 
 #endif
