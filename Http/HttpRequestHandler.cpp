@@ -3,7 +3,10 @@
 #include <sstream>
 #include <cstdlib>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <fstream>
+#include <ctime>
+#include <cstdio>
 
 HttpRequestHandler::HttpRequestHandler()
 {
@@ -93,6 +96,14 @@ std::string HttpRequestHandler::_getHeaderValue(const std::string &headerPart,
     return "";
 }
 
+bool HttpRequestHandler::_containsPathTraversal(const std::string &path) const
+{
+    if (path.find("..") != std::string::npos)
+        return true;
+
+    return false;
+}
+
 bool HttpRequestHandler::_isRequestComplete(const std::string &rawRequest) const
 {
     size_t headerEnd;
@@ -156,6 +167,9 @@ HttpResponse HttpRequestHandler::_handleGet(const HttpRequest &request)
     std::string body;
     std::string contentType;
 
+    if (_containsPathTraversal(request.getPath()))
+        return HttpResponse::makeErrorResponse(403);
+
     filePath = _resolveGetPath(request.getPath());
 
     if (!_fileExists(filePath))
@@ -176,19 +190,81 @@ HttpResponse HttpRequestHandler::_handleGet(const HttpRequest &request)
     return response;
 }
 
+bool HttpRequestHandler::_ensureDirectory(const std::string &path) const
+{
+    struct stat st;
+
+    if (stat(path.c_str(), &st) == 0)
+        return S_ISDIR(st.st_mode);
+
+    if (mkdir(path.c_str(), 0755) != 0)
+        return false;
+
+    return true;
+}
+
+std::string HttpRequestHandler::_generateUploadFileName() const
+{
+    std::ostringstream oss;
+
+    oss << "upload_";
+    oss << std::time(NULL);
+    oss << ".bin";
+
+    return oss.str();
+}
+
+bool HttpRequestHandler::_writeFile(const std::string &path,
+                                    const std::string &content) const
+{
+    std::ofstream file;
+
+    file.open(path.c_str(), std::ios::out | std::ios::binary);
+    if (!file.is_open())
+        return false;
+
+    file.write(content.c_str(), content.size());
+
+    if (!file.good())
+    {
+        file.close();
+        return false;
+    }
+
+    file.close();
+    return true;
+}
+
 HttpResponse HttpRequestHandler::_handlePost(const HttpRequest &request)
 {
     HttpResponse response;
+    std::string uploadDir;
+    std::string fileName;
+    std::string filePath;
     std::string body;
 
+    uploadDir = "uploads";
+
+    if (request.getPath() != "/upload")
+        return HttpResponse::makeErrorResponse(404);
+
+    if (!_ensureDirectory(uploadDir))
+        return HttpResponse::makeErrorResponse(500);
+
+    fileName = _generateUploadFileName();
+    filePath = uploadDir + "/" + fileName;
+
+    if (!_writeFile(filePath, request.getBody()))
+        return HttpResponse::makeErrorResponse(500);
+
     body = "<html><body>";
-    body += "<h1>POST received</h1>";
-    body += "<pre>";
-    body += request.getBody();
-    body += "</pre>";
+    body += "<h1>Upload successful</h1>";
+    body += "<p>Saved as: ";
+    body += fileName;
+    body += "</p>";
     body += "</body></html>";
 
-    response.setStatus(200);
+    response.setStatus(201);
     response.setHeader("Content-Type", "text/html");
     response.setBody(body);
 

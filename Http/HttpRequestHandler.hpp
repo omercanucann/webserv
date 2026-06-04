@@ -40,6 +40,10 @@ class HttpRequestHandler : public IRequestHandler
         bool        _readFile(const std::string &path, std::string &out) const;
         std::string _buildFilePath(const std::string &requestPath) const;
         std::string _resolveGetPath(const std::string &requestPath) const;
+        bool        _containsPathTraversal(const std::string &path) const;
+        bool        _ensureDirectory(const std::string &path) const;
+        std::string _generateUploadFileName() const;
+        bool        _writeFile(const std::string &path, const std::string &content) const;
 };
 
 #endif
