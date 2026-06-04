@@ -2,6 +2,8 @@
 #include <iostream>
 #include <sstream>
 #include <cstdlib>
+#include <sys/stat.h>
+#include <fstream>
 
 HttpRequestHandler::HttpRequestHandler()
 {
@@ -126,57 +128,141 @@ bool HttpRequestHandler::_isRequestComplete(const std::string &rawRequest) const
     return true;
 }
 
-HttpResponse HttpRequestHandler::_buildResponse(const HttpRequest &request)
+HttpResponse HttpRequestHandler::_handleGet(const HttpRequest &request)
+{
+    HttpResponse response;
+    std::string filePath;
+    std::string body;
+    std::string contentType;
+
+    filePath = _buildFilePath(request.getPath());
+
+    if (!_fileExists(filePath))
+        return HttpResponse::makeErrorResponse(404);
+
+    if (_isDirectory(filePath))
+        return HttpResponse::makeErrorResponse(403);
+
+    body = _readFile(filePath);
+    if (body.empty())
+        return HttpResponse::makeErrorResponse(500);
+
+    contentType = _mimeTypes.getMimeType(filePath);
+
+    response.setStatus(200);
+    response.setHeader("Content-Type", contentType);
+    response.setBody(body);
+
+    return response;
+}
+
+HttpResponse HttpRequestHandler::_handlePost(const HttpRequest &request)
 {
     HttpResponse response;
     std::string body;
 
-    if (request.getMethod() == "DELETE")
-    {
-        response.setStatus(204);
-        return response;
-    }
-
-    if (request.getPath() == "/redirect")
-        return HttpResponse::makeRedirectResponse(301, "/");
-
-    if (request.getPath() == "/not-found")
-        return HttpResponse::makeErrorResponse(404);
+    body = "<html><body>";
+    body += "<h1>POST received</h1>";
+    body += "<pre>";
+    body += request.getBody();
+    body += "</pre>";
+    body += "</body></html>";
 
     response.setStatus(200);
     response.setHeader("Content-Type", "text/html");
+    response.setBody(body);
 
-    body = "<html>\n";
-    body += "<head><title>webserv</title></head>\n";
-    body += "<body>\n";
-    body += "<h1>webserv is working</h1>\n";
-    body += "<p>Method: ";
-    body += request.getMethod();
-    body += "</p>\n";
-    body += "<p>Path: ";
-    body += request.getPath();
-    body += "</p>\n";
+    return response;
+}
 
-    if (!request.getQuery().empty())
-    {
-        body += "<p>Query: ";
-        body += request.getQuery();
-        body += "</p>\n";
-    }
+HttpResponse HttpRequestHandler::_handleDelete(const HttpRequest &request)
+{
+    (void)request;
+
+    HttpResponse response;
+
+    response.setStatus(204);
+    return response;
+}
+
+bool HttpRequestHandler::_isMethodAllowed(const std::string &method) const
+{
+    if (method == "GET")
+        return true;
+    if (method == "POST")
+        return true;
+    if (method == "DELETE")
+        return true;
+    return false;
+}
+
+std::string HttpRequestHandler::_readFile(const std::string &path) const
+{
+    std::ifstream file;
+    std::ostringstream content;
+
+    file.open(path.c_str(), std::ios::in | std::ios::binary);
+    if (!file.is_open())
+        return "";
+
+    content << file.rdbuf();
+    file.close();
+
+    return content.str();
+}
+
+bool HttpRequestHandler::_isDirectory(const std::string &path) const
+{
+    struct stat st;
+
+    if (stat(path.c_str(), &st) != 0)
+        return false;
+
+    return S_ISDIR(st.st_mode);
+}
+
+bool HttpRequestHandler::_fileExists(const std::string &path) const
+{
+    struct stat st;
+
+    if (stat(path.c_str(), &st) != 0)
+        return false;
+
+    return true;
+}
+
+std::string HttpRequestHandler::_buildFilePath(const std::string &requestPath) const
+{
+    std::string root;
+    std::string path;
+
+    root = "www";
+    path = requestPath;
+
+    if (path.empty() || path == "/")
+        path = "/index.html";
+
+    if (path[0] != '/')
+        path = "/" + path;
+
+    return root + path;
+}
+
+HttpResponse HttpRequestHandler::_buildResponse(const HttpRequest &request)
+{
+    if (!_isMethodAllowed(request.getMethod()))
+        return HttpResponse::makeErrorResponse(405);
+
+    if (request.getMethod() == "GET")
+        return _handleGet(request);
 
     if (request.getMethod() == "POST")
-    {
-        body += "<h2>Body</h2>\n";
-        body += "<pre>";
-        body += request.getBody();
-        body += "</pre>\n";
-    }
+        return _handlePost(request);
 
-    body += "</body>\n";
-    body += "</html>\n";
+    if (request.getMethod() == "DELETE")
+        return _handleDelete(request);
 
-    response.setBody(body);
-    return response;
+    return HttpResponse::makeErrorResponse(405);
 }
 
 bool HttpRequestHandler::handle_data(int slot_index, ConnectionSlot &slot)

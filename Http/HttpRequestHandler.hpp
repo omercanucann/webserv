@@ -29,6 +29,16 @@ class HttpRequestHandler : public IRequestHandler
         size_t      _stringToSize(const std::string &str) const;
 
         HttpResponse _buildResponse(const HttpRequest &request);
+
+        HttpResponse _handleGet(const HttpRequest &request);
+        HttpResponse _handlePost(const HttpRequest &request);
+        HttpResponse _handleDelete(const HttpRequest &request);
+
+        bool        _isMethodAllowed(const std::string &method) const;
+        bool        _isDirectory(const std::string &path) const;
+        bool        _fileExists(const std::string &path) const;
+        std::string _readFile(const std::string &path) const;
+        std::string _buildFilePath(const std::string &requestPath) const;
 };
 
 #endif

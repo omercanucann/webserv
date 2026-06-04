@@ -30,7 +30,6 @@ class HttpParser
 
         bool isTokenChar(char c) const;
         bool isValidMethodToken(const std::string& method) const;
-        bool isSupportedMethod(const std::string& method) const;
         bool isValidHeaderName(const std::string& key) const;
         bool isOnlyDigits(const std::string& str) const;
 

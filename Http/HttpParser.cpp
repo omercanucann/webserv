@@ -96,11 +96,6 @@ bool HttpParser::isValidMethodToken(const std::string& method) const
     return true;
 }
 
-bool HttpParser::isSupportedMethod(const std::string& method) const
-{
-    return method == "GET" || method == "POST" || method == "DELETE";
-}
-
 bool HttpParser::isValidHeaderName(const std::string& key) const
 {
     size_t i;
@@ -242,9 +237,6 @@ void HttpParser::parseRequestLine(const std::string& line, HttpRequest& request)
 
     if (!isValidMethodToken(method))
         throw ParseException(400, "Invalid method token");
-
-    if (!isSupportedMethod(method))
-        throw ParseException(501, "Method not implemented");
 
     if (version != "HTTP/1.1" && version != "HTTP/1.0")
         throw ParseException(505, "HTTP version not supported");
