@@ -55,6 +55,16 @@ bool HttpRequestHandler::_hasHeaderEnd(const std::string &rawRequest, size_t &he
     return headerEnd != std::string::npos;
 }
 
+bool HttpRequestHandler::_isBodyTooLarge(const HttpRequest &request) const
+{
+    const size_t MAX_BODY_SIZE = 1000000;
+
+    if (request.getBody().size() > MAX_BODY_SIZE)
+        return true;
+
+    return false;
+}
+
 std::string HttpRequestHandler::_getHeaderValue(const std::string &headerPart,
                                                 const std::string &key) const
 {
@@ -205,10 +215,13 @@ bool HttpRequestHandler::_ensureDirectory(const std::string &path) const
 
 std::string HttpRequestHandler::_generateUploadFileName() const
 {
+    static unsigned long counter = 0;
     std::ostringstream oss;
 
     oss << "upload_";
     oss << std::time(NULL);
+    oss << "_";
+    oss << counter++;
     oss << ".bin";
 
     return oss.str();
@@ -243,10 +256,13 @@ HttpResponse HttpRequestHandler::_handlePost(const HttpRequest &request)
     std::string filePath;
     std::string body;
 
-    uploadDir = "uploads";
+    uploadDir = "www/uploads";
 
     if (request.getPath() != "/upload")
         return HttpResponse::makeErrorResponse(404);
+
+    if (_isBodyTooLarge(request))
+        return HttpResponse::makeErrorResponse(413);
 
     if (!_ensureDirectory(uploadDir))
         return HttpResponse::makeErrorResponse(500);
@@ -262,7 +278,10 @@ HttpResponse HttpRequestHandler::_handlePost(const HttpRequest &request)
     body += "<p>Saved as: ";
     body += fileName;
     body += "</p>";
-    body += "</body></html>";
+    body += "<p>URL: /uploads/";
+    body += fileName;
+    body += "</p>";
+    body += "</body></html>\n";
 
     response.setStatus(201);
     response.setHeader("Content-Type", "text/html");
@@ -273,9 +292,22 @@ HttpResponse HttpRequestHandler::_handlePost(const HttpRequest &request)
 
 HttpResponse HttpRequestHandler::_handleDelete(const HttpRequest &request)
 {
-    (void)request;
-
     HttpResponse response;
+    std::string filePath;
+
+    if (_containsPathTraversal(request.getPath()))
+        return HttpResponse::makeErrorResponse(403);
+
+    filePath = _buildFilePath(request.getPath());
+
+    if (!_fileExists(filePath))
+        return HttpResponse::makeErrorResponse(404);
+
+    if (_isDirectory(filePath))
+        return HttpResponse::makeErrorResponse(403);
+
+    if (std::remove(filePath.c_str()) != 0)
+        return HttpResponse::makeErrorResponse(403);
 
     response.setStatus(204);
     return response;

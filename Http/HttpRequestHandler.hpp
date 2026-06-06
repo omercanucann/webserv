@@ -44,6 +44,7 @@ class HttpRequestHandler : public IRequestHandler
         bool        _ensureDirectory(const std::string &path) const;
         std::string _generateUploadFileName() const;
         bool        _writeFile(const std::string &path, const std::string &content) const;
+        bool        _isBodyTooLarge(const HttpRequest &request) const;
 };
 
 #endif
