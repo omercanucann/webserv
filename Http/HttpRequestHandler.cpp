@@ -1,4 +1,5 @@
 #include "HttpRequestHandler.hpp"
+#include "DefaultConfig.hpp"
 #include <iostream>
 #include <sstream>
 #include <cstdlib>
@@ -57,9 +58,7 @@ bool HttpRequestHandler::_hasHeaderEnd(const std::string &rawRequest, size_t &he
 
 bool HttpRequestHandler::_isBodyTooLarge(const HttpRequest &request) const
 {
-    const size_t MAX_BODY_SIZE = 1000000;
-
-    if (request.getBody().size() > MAX_BODY_SIZE)
+    if (request.getBody().size() > DefaultConfig::CLIENT_MAX_BODY_SIZE)
         return true;
 
     return false;
@@ -161,7 +160,7 @@ std::string HttpRequestHandler::_resolveGetPath(const std::string &requestPath) 
         if (!filePath.empty() && filePath[filePath.length() - 1] != '/')
             filePath += "/";
 
-        indexPath = filePath + "index.html";
+        indexPath = filePath + DefaultConfig::INDEX;
 
         if (_fileExists(indexPath) && !_isDirectory(indexPath))
             return indexPath;
@@ -256,7 +255,7 @@ HttpResponse HttpRequestHandler::_handlePost(const HttpRequest &request)
     std::string filePath;
     std::string body;
 
-    uploadDir = "www/uploads";
+    uploadDir = DefaultConfig::UPLOAD_DIR;
 
     if (request.getPath() != "/upload")
         return HttpResponse::makeErrorResponse(404);
@@ -371,7 +370,7 @@ std::string HttpRequestHandler::_buildFilePath(const std::string &requestPath) c
     std::string root;
     std::string path;
 
-    root = "www";
+    root = DefaultConfig::ROOT;
     path = requestPath;
 
     if (path.empty() || path == "/")
