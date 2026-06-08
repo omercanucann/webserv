@@ -64,6 +64,18 @@ bool HttpRequestHandler::_isBodyTooLarge(const HttpRequest &request) const
     return false;
 }
 
+bool HttpRequestHandler::_isUploadPath(const std::string &path) const
+{
+    std::string prefix;
+
+    prefix = "/uploads/";
+
+    if (path.length() < prefix.length())
+        return false;
+
+    return path.compare(0, prefix.length(), prefix) == 0;
+}
+
 std::string HttpRequestHandler::_getHeaderValue(const std::string &headerPart,
                                                 const std::string &key) const
 {
@@ -295,6 +307,9 @@ HttpResponse HttpRequestHandler::_handleDelete(const HttpRequest &request)
     std::string filePath;
 
     if (_containsPathTraversal(request.getPath()))
+        return HttpResponse::makeErrorResponse(403);
+
+    if (!_isUploadPath(request.getPath()))
         return HttpResponse::makeErrorResponse(403);
 
     filePath = _buildFilePath(request.getPath());
