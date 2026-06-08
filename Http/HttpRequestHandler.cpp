@@ -17,6 +17,38 @@ HttpRequestHandler::~HttpRequestHandler()
 {
 }
 
+std::string HttpRequestHandler::_sizeToString(size_t value) const
+{
+    std::ostringstream oss;
+
+    oss << value;
+    return oss.str();
+}
+
+HttpResponse HttpRequestHandler::_makeErrorResponse(int statusCode) const
+{
+    HttpResponse response;
+    std::string filePath;
+    std::string body;
+
+    filePath = DefaultConfig::ERROR_ROOT + "/";
+    filePath += _sizeToString(static_cast<size_t>(statusCode));
+    filePath += ".html";
+
+    if (_fileExists(filePath) && !_isDirectory(filePath))
+    {
+        if (_readFile(filePath, body))
+        {
+            response.setStatus(statusCode);
+            response.setHeader("Content-Type", "text/html");
+            response.setBody(body);
+            return response;
+        }
+    }
+
+    return HttpResponse::makeErrorResponse(statusCode);
+}
+
 std::string HttpRequestHandler::_toLower(const std::string &str) const
 {
     std::string result;
@@ -189,18 +221,18 @@ HttpResponse HttpRequestHandler::_handleGet(const HttpRequest &request)
     std::string contentType;
 
     if (_containsPathTraversal(request.getPath()))
-        return HttpResponse::makeErrorResponse(403);
+        return _makeErrorResponse(403);
 
     filePath = _resolveGetPath(request.getPath());
 
     if (!_fileExists(filePath))
-        return HttpResponse::makeErrorResponse(404);
+        return _makeErrorResponse(404);
 
     if (_isDirectory(filePath))
-        return HttpResponse::makeErrorResponse(403);
+        return _makeErrorResponse(403);
 
     if (!_readFile(filePath, body))
-        return HttpResponse::makeErrorResponse(403);
+        return _makeErrorResponse(403);
 
     contentType = _mimeTypes.getMimeType(filePath);
 
@@ -270,19 +302,19 @@ HttpResponse HttpRequestHandler::_handlePost(const HttpRequest &request)
     uploadDir = DefaultConfig::UPLOAD_DIR;
 
     if (request.getPath() != "/upload")
-        return HttpResponse::makeErrorResponse(404);
+        return _makeErrorResponse(404);
 
     if (_isBodyTooLarge(request))
-        return HttpResponse::makeErrorResponse(413);
+        return _makeErrorResponse(413);
 
     if (!_ensureDirectory(uploadDir))
-        return HttpResponse::makeErrorResponse(500);
+        return _makeErrorResponse(500);
 
     fileName = _generateUploadFileName();
     filePath = uploadDir + "/" + fileName;
 
     if (!_writeFile(filePath, request.getBody()))
-        return HttpResponse::makeErrorResponse(500);
+        return _makeErrorResponse(500);
 
     body = "<html><body>";
     body += "<h1>Upload successful</h1>";
@@ -307,21 +339,21 @@ HttpResponse HttpRequestHandler::_handleDelete(const HttpRequest &request)
     std::string filePath;
 
     if (_containsPathTraversal(request.getPath()))
-        return HttpResponse::makeErrorResponse(403);
+        return _makeErrorResponse(403);
 
     if (!_isUploadPath(request.getPath()))
-        return HttpResponse::makeErrorResponse(403);
+        return _makeErrorResponse(403);
 
     filePath = _buildFilePath(request.getPath());
 
     if (!_fileExists(filePath))
-        return HttpResponse::makeErrorResponse(404);
+        return _makeErrorResponse(404);
 
     if (_isDirectory(filePath))
-        return HttpResponse::makeErrorResponse(403);
+        return _makeErrorResponse(403);
 
     if (std::remove(filePath.c_str()) != 0)
-        return HttpResponse::makeErrorResponse(403);
+        return _makeErrorResponse(403);
 
     response.setStatus(204);
     return response;
@@ -400,7 +432,7 @@ std::string HttpRequestHandler::_buildFilePath(const std::string &requestPath) c
 HttpResponse HttpRequestHandler::_buildResponse(const HttpRequest &request)
 {
     if (!_isMethodAllowed(request.getMethod()))
-        return HttpResponse::makeErrorResponse(405);
+        return _makeErrorResponse(405);
 
     if (request.getMethod() == "GET")
         return _handleGet(request);
@@ -411,7 +443,7 @@ HttpResponse HttpRequestHandler::_buildResponse(const HttpRequest &request)
     if (request.getMethod() == "DELETE")
         return _handleDelete(request);
 
-    return HttpResponse::makeErrorResponse(405);
+    return _makeErrorResponse(405);
 }
 
 bool HttpRequestHandler::handle_data(int slot_index, ConnectionSlot &slot)
@@ -435,11 +467,11 @@ bool HttpRequestHandler::handle_data(int slot_index, ConnectionSlot &slot)
     }
     catch (const HttpParser::ParseException &e)
     {
-        response = HttpResponse::makeErrorResponse(e.getStatusCode());
+        response = _makeErrorResponse(e.getStatusCode());
     }
     catch (const std::exception &)
     {
-        response = HttpResponse::makeErrorResponse(500);
+        response = _makeErrorResponse(500);
     }
 
     rawResponse = response.toString();
