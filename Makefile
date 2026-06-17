@@ -24,6 +24,10 @@ SRCS    :=  main.cpp                      \
 			Http/HttpResponse.cpp \
 			Http/MimeTypes.cpp \
 			Http/StatusCode.cpp \
+			Config/ConfigParser.cpp \
+			Router/Router.cpp \
+			Http/StaticHandler.cpp \
+			Http/AutoIndex.cpp \
 
 OBJS    := $(patsubst %.cpp, $(OBJDIR)/%.o, $(notdir $(SRCS)))
 
@@ -54,6 +58,13 @@ $(OBJDIR)/%.o: utils/%.cpp | $(OBJDIR)
 $(OBJDIR)/%.o: Http/%.cpp | $(OBJDIR)
 	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
 	@echo "  CC $<"
+
+$(OBJDIR)/%.o: Config/%.cpp | $(OBJDIR)
+	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
+	@echo "  CC $<"
+
+$(OBJDIR)/%.o: Router/%.cpp | $(OBJDIR)
+	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
 
 $(OBJDIR):
 	@mkdir -p $(OBJDIR)

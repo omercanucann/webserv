@@ -9,7 +9,7 @@
 #include <ctime>
 #include <cstdio>
 
-HttpRequestHandler::HttpRequestHandler()
+HttpRequestHandler::HttpRequestHandler(const Config &config) : _router(config), _staticHandler()
 {
 }
 
@@ -88,26 +88,6 @@ bool HttpRequestHandler::_hasHeaderEnd(const std::string &rawRequest, size_t &he
     return headerEnd != std::string::npos;
 }
 
-bool HttpRequestHandler::_isBodyTooLarge(const HttpRequest &request) const
-{
-    if (request.getBody().size() > DefaultConfig::CLIENT_MAX_BODY_SIZE)
-        return true;
-
-    return false;
-}
-
-bool HttpRequestHandler::_isUploadPath(const std::string &path) const
-{
-    std::string prefix;
-
-    prefix = "/uploads/";
-
-    if (path.length() < prefix.length())
-        return false;
-
-    return path.compare(0, prefix.length(), prefix) == 0;
-}
-
 std::string HttpRequestHandler::_getHeaderValue(const std::string &headerPart,
                                                 const std::string &key) const
 {
@@ -149,14 +129,6 @@ std::string HttpRequestHandler::_getHeaderValue(const std::string &headerPart,
     return "";
 }
 
-bool HttpRequestHandler::_containsPathTraversal(const std::string &path) const
-{
-    if (path.find("..") != std::string::npos)
-        return true;
-
-    return false;
-}
-
 bool HttpRequestHandler::_isRequestComplete(const std::string &rawRequest) const
 {
     size_t headerEnd;
@@ -190,184 +162,6 @@ bool HttpRequestHandler::_isRequestComplete(const std::string &rawRequest) const
     }
 
     return true;
-}
-
-std::string HttpRequestHandler::_resolveGetPath(const std::string &requestPath) const
-{
-    std::string filePath;
-    std::string indexPath;
-
-    filePath = _buildFilePath(requestPath);
-
-    if (_isDirectory(filePath))
-    {
-        if (!filePath.empty() && filePath[filePath.length() - 1] != '/')
-            filePath += "/";
-
-        indexPath = filePath + DefaultConfig::INDEX;
-
-        if (_fileExists(indexPath) && !_isDirectory(indexPath))
-            return indexPath;
-    }
-
-    return filePath;
-}
-
-HttpResponse HttpRequestHandler::_handleGet(const HttpRequest &request)
-{
-    HttpResponse response;
-    std::string filePath;
-    std::string body;
-    std::string contentType;
-
-    if (_containsPathTraversal(request.getPath()))
-        return _makeErrorResponse(403);
-
-    filePath = _resolveGetPath(request.getPath());
-
-    if (!_fileExists(filePath))
-        return _makeErrorResponse(404);
-
-    if (_isDirectory(filePath))
-        return _makeErrorResponse(403);
-
-    if (!_readFile(filePath, body))
-        return _makeErrorResponse(403);
-
-    contentType = _mimeTypes.getMimeType(filePath);
-
-    response.setStatus(200);
-    response.setHeader("Content-Type", contentType);
-    response.setBody(body);
-
-    return response;
-}
-
-bool HttpRequestHandler::_ensureDirectory(const std::string &path) const
-{
-    struct stat st;
-
-    if (stat(path.c_str(), &st) == 0)
-        return S_ISDIR(st.st_mode);
-
-    if (mkdir(path.c_str(), 0755) != 0)
-        return false;
-
-    return true;
-}
-
-std::string HttpRequestHandler::_generateUploadFileName() const
-{
-    static unsigned long counter = 0;
-    std::ostringstream oss;
-
-    oss << "upload_";
-    oss << std::time(NULL);
-    oss << "_";
-    oss << counter++;
-    oss << ".bin";
-
-    return oss.str();
-}
-
-bool HttpRequestHandler::_writeFile(const std::string &path,
-                                    const std::string &content) const
-{
-    std::ofstream file;
-
-    file.open(path.c_str(), std::ios::out | std::ios::binary);
-    if (!file.is_open())
-        return false;
-
-    file.write(content.c_str(), content.size());
-
-    if (!file.good())
-    {
-        file.close();
-        return false;
-    }
-
-    file.close();
-    return true;
-}
-
-HttpResponse HttpRequestHandler::_handlePost(const HttpRequest &request)
-{
-    HttpResponse response;
-    std::string uploadDir;
-    std::string fileName;
-    std::string filePath;
-    std::string body;
-
-    uploadDir = DefaultConfig::UPLOAD_DIR;
-
-    if (request.getPath() != "/upload")
-        return _makeErrorResponse(404);
-
-    if (_isBodyTooLarge(request))
-        return _makeErrorResponse(413);
-
-    if (!_ensureDirectory(uploadDir))
-        return _makeErrorResponse(500);
-
-    fileName = _generateUploadFileName();
-    filePath = uploadDir + "/" + fileName;
-
-    if (!_writeFile(filePath, request.getBody()))
-        return _makeErrorResponse(500);
-
-    body = "<html><body>";
-    body += "<h1>Upload successful</h1>";
-    body += "<p>Saved as: ";
-    body += fileName;
-    body += "</p>";
-    body += "<p>URL: /uploads/";
-    body += fileName;
-    body += "</p>";
-    body += "</body></html>\n";
-
-    response.setStatus(201);
-    response.setHeader("Content-Type", "text/html");
-    response.setBody(body);
-
-    return response;
-}
-
-HttpResponse HttpRequestHandler::_handleDelete(const HttpRequest &request)
-{
-    HttpResponse response;
-    std::string filePath;
-
-    if (_containsPathTraversal(request.getPath()))
-        return _makeErrorResponse(403);
-
-    if (!_isUploadPath(request.getPath()))
-        return _makeErrorResponse(403);
-
-    filePath = _buildFilePath(request.getPath());
-
-    if (!_fileExists(filePath))
-        return _makeErrorResponse(404);
-
-    if (_isDirectory(filePath))
-        return _makeErrorResponse(403);
-
-    if (std::remove(filePath.c_str()) != 0)
-        return _makeErrorResponse(403);
-
-    response.setStatus(204);
-    return response;
-}
-
-bool HttpRequestHandler::_isMethodAllowed(const std::string &method) const
-{
-    if (method == "GET")
-        return true;
-    if (method == "POST")
-        return true;
-    if (method == "DELETE")
-        return true;
-    return false;
 }
 
 bool HttpRequestHandler::_readFile(const std::string &path, std::string &out) const
@@ -412,36 +206,18 @@ bool HttpRequestHandler::_fileExists(const std::string &path) const
     return true;
 }
 
-std::string HttpRequestHandler::_buildFilePath(const std::string &requestPath) const
-{
-    std::string root;
-    std::string path;
-
-    root = DefaultConfig::ROOT;
-    path = requestPath;
-
-    if (path.empty() || path == "/")
-        path = "/index.html";
-
-    if (path[0] != '/')
-        path = "/" + path;
-
-    return root + path;
-}
-
 HttpResponse HttpRequestHandler::_buildResponse(const HttpRequest &request)
 {
-    if (!_isMethodAllowed(request.getMethod()))
-        return _makeErrorResponse(405);
+    RouteResult route = _router.route(request);
 
-    if (request.getMethod() == "GET")
-        return _handleGet(request);
+    if (route.server == NULL)
+        return _makeErrorResponse(500);
+    
+    if (route.location == NULL)
+        return _makeErrorResponse(404);
 
-    if (request.getMethod() == "POST")
-        return _handlePost(request);
-
-    if (request.getMethod() == "DELETE")
-        return _handleDelete(request);
+    if (request.getMethod() == "GET" || request.getMethod() == "DELETE" || request.getMethod() == "POST")
+        return _staticHandler.handle(request, route);
 
     return _makeErrorResponse(405);
 }

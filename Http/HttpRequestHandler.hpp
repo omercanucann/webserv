@@ -5,22 +5,24 @@
 #include "HttpParser.hpp"
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
-#include "MimeTypes.hpp"
 #include <string>
 #include <vector>
+#include "../Router/Router.hpp"
+#include "StaticHandler.hpp"
 
 class HttpRequestHandler : public IRequestHandler
 {
     public:
-        HttpRequestHandler();
+        HttpRequestHandler(const Config &config);
         virtual ~HttpRequestHandler();
 
         virtual bool handle_data(int slot_index, ConnectionSlot &slot);
         virtual void handle_close(int slot_index);
 
-    private:
-        HttpParser _parser;
-        MimeTypes  _mimeTypes;
+	private:
+		HttpParser _parser;
+		Router     _router;
+		StaticHandler _staticHandler;
 
         bool        _isRequestComplete(const std::string &rawRequest) const;
         bool        _hasHeaderEnd(const std::string &rawRequest, size_t &headerEnd) const;
@@ -28,26 +30,13 @@ class HttpRequestHandler : public IRequestHandler
         std::string _toLower(const std::string &str) const;
         size_t      _stringToSize(const std::string &str) const;
 
-        HttpResponse _buildResponse(const HttpRequest &request);
+		HttpResponse _buildResponse(const HttpRequest &request);
 
-        HttpResponse _handleGet(const HttpRequest &request);
-        HttpResponse _handlePost(const HttpRequest &request);
-        HttpResponse _handleDelete(const HttpRequest &request);
-
-        bool        _isMethodAllowed(const std::string &method) const;
-        bool        _isDirectory(const std::string &path) const;
-        bool        _fileExists(const std::string &path) const;
-        bool        _readFile(const std::string &path, std::string &out) const;
-        std::string _buildFilePath(const std::string &requestPath) const;
-        std::string _resolveGetPath(const std::string &requestPath) const;
-        bool        _containsPathTraversal(const std::string &path) const;
-        bool        _ensureDirectory(const std::string &path) const;
-        std::string _generateUploadFileName() const;
-        bool        _writeFile(const std::string &path, const std::string &content) const;
-        bool        _isBodyTooLarge(const HttpRequest &request) const;
-        bool        _isUploadPath(const std::string &path) const;
-        HttpResponse _makeErrorResponse(int statusCode) const;
-        std::string  _sizeToString(size_t value) const;
+		bool        _isDirectory(const std::string &path) const;
+		bool        _fileExists(const std::string &path) const;
+		bool        _readFile(const std::string &path, std::string &out) const;
+		HttpResponse _makeErrorResponse(int statusCode) const;
+		std::string  _sizeToString(size_t value) const;
 };
 
 #endif

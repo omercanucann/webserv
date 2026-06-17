@@ -1,3 +1,4 @@
+#include "../Config/ConfigParser.hpp"
 #include "../Network_Server/Socketbinder.hpp"
 #include "../Network_Server/Signalguard.hpp"
 #include "../Network_Server/Pollreactor.hpp"
@@ -9,32 +10,47 @@
 
 int main(int argc, char* argv[])
 {
-    if (argc > 1)
-        fprintf(stderr, "[main] Konfigürasyon: %s (henüz ayrıştırılmıyor)\n", argv[1]);
+    std::string configPath;
+
+    if (argc == 2)
+        configPath = argv[1];
     else
-        fprintf(stderr, "[main] Varsayılan konfigürasyon kullanılıyor\n");
+        configPath = "configs/default.conf";
+
+    ConfigParser parser;
+    Config config;
+
+    try
+    {
+        config = parser.parseConfig(configPath);
+    }
+    catch (const ConfigParser::ParseException &e)
+    {
+        fprintf(stderr, "[main] Config hatasi: %s\n", e.what());
+        return 1;
+    }
 
     SignalGuard::install();
 
     PollReactor reactor;
-    HttpRequestHandler handler;
+    HttpRequestHandler handler(config);
     ReactorBridge bridge(reactor, handler);
 
     bridge.activate();
 
-    if (!reactor.add_server("0.0.0.0", 8080))
+    size_t i = 0;
+    while (i < config.servers.size())
     {
-        fprintf(stderr, "[main] Port 8080 açılamadı\n");
-        return 1;
+        if (!(reactor.add_server(config.servers[i].listenHost,config.servers[i].listenPort)))
+        {
+            fprintf(stderr, "[main] Port %d acilamadi\n", config.servers[i].listenPort);
+            return 1;
+        }
+        i++;
     }
+    
 
-    if (!reactor.add_server("0.0.0.0", 8081))
-    {
-        fprintf(stderr, "[main] Port 8081 açılamadı\n");
-        return 1;
-    }
-
-    fprintf(stderr, "[main] Sunucu hazır. http://localhost:8080 adresini ziyaret edin\n");
+    fprintf(stderr, "[main] Sunucu hazır. Port(lar) dinleniyor...\n");
     fprintf(stderr, "[main] Durdurmak için Ctrl+C\n");
 
     reactor.run();
