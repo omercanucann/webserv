@@ -81,6 +81,10 @@ void PollReactor::set_callbacks(DataCallback on_data, DataCallback on_write, Dat
 void PollReactor::run() // Poll döngüsünü başlatır, bu fonksiyon bloklayıcıdır, bu fonksiyon çağrıldığında olay döngüsü başlar ve bu döngü içinde poll() fonksiyonu kullanılarak tüm slotlar izlenir, 
 //  gelen olaylara göre uygun işlemler yapılır, bu döngü request_shutdown() fonksiy
 {
+    struct pollfd pollList[MAX_SLOTS + MAX_EXTERNAL_FDS];
+    int externalMap[MAX_SLOTS + MAX_EXTERNAL_FDS];
+    int pollCount;
+    int i;
     int processed;
     int n_ready;
     short rev;
@@ -96,10 +100,46 @@ void PollReactor::run() // Poll döngüsünü başlatır, bu fonksiyon bloklayı
  
     while (_running) // Olay döngüsü, bu döngü içinde poll() fonksiyonu kullanılarak tüm slotlar izlenir, gelen olaylara göre uygun işlemler yapılır, bu döngü request_shutdown() fonksiyonu çağrıldığında sonlanır
     {
-        n_ready = poll(_pollfds, (nfds_t)_slot_count, POLL_TIMEOUT_MS); // poll() fonksiyonu, _pollfds dizisindeki fd'leri izler, bu dizide her slotun fd ve events bilgisi tutulur, 
-        //  bu fonksiyon belirtilen süre boyunca (POLL_TIMEOUT_MS) bekler ve bu süre içinde herhangi bir olay gerçekleşirse o olayları işaretler,
-        //  n_ready değişkeni, gerçekleşen olayların sayısını döndürür, eğer zaman aşımı gerçekleşirse 0 döndürür, hata oluşursa -1 döndürür, bu sayede olay döngüsü etkin bir şekilde çalışır ve kaynakları verimli kullanır
- 
+        pollCount = 0;
+
+        i = 0;
+        while (i < MAX_SLOTS + MAX_EXTERNAL_FDS)
+        {
+            externalMap[i] = -1;
+            i++;
+        }
+
+        i = 0;
+        while (i < _slot_count)
+        {
+            pollList[pollCount] = _pollfds[i];
+            pollCount++;
+            i++;
+        }
+
+        i = 0;
+        while (i < MAX_EXTERNAL_FDS)
+        {
+            if (_externalFds[i].fd >= 0)
+            {
+                pollList[pollCount].fd = _externalFds[i].fd;
+                pollList[pollCount].events = _externalFds[i].events;
+                pollList[pollCount].revents = 0;
+                externalMap[pollCount] = i;
+                pollCount++;
+            }
+            i++;
+        }
+
+        n_ready = poll(pollList, (nfds_t)pollCount, POLL_TIMEOUT_MS);
+
+        i = 0;
+        while (i < _slot_count)
+        {
+            _pollfds[i].revents = pollList[i].revents;
+            i++;
+        }
+
         if (n_ready < 0) // Eğer poll() fonksiyonu hata döndürürse, bu genellikle bir sistem çağrısı hatasıdır, bu durumda hata mesajı yazdırılır ve döngü sonlandırılır, 
         // böylece uygulama hatalı durumlarda gereksiz yere kaynak tüketmez
         {
@@ -192,6 +232,26 @@ void PollReactor::run() // Poll döngüsünü başlatır, bu fonksiyon bloklayı
             }
         }
 
+        i = _slot_count;
+        while (i < pollCount)
+        {
+            int extIndex;
+            short extRev;
+        
+            extIndex = externalMap[i];
+            extRev = pollList[i].revents;
+        
+            if (extIndex >= 0 && extRev != 0 && _externalFds[extIndex].callback != NULL)
+            {
+                _externalFds[extIndex].callback(
+                    _externalFds[extIndex].ctx,
+                    _externalFds[extIndex].fd,
+                    extRev
+                );
+            }
+            i++;
+        }
+        
         _sweep_counter++; // Bağlantı zaman aşımı yönetimi için sayaç artırılır, bu sayaç belirli bir değere ulaştığında _sweep_timeouts() fonksiyonu çağrılır, böylece boşta kalan bağlantılar kapatılır ve kaynaklar serbest bırakılır,
         if (_sweep_counter >= SWEEP_INTERVAL) // Eğer sayaç belirli bir değere ulaşmışsa, bu genellikle belirli bir süre geçtiği anlamına gelir, bu durumda bağlantı zaman aşımı yönetimi için 
         // _sweep_timeouts() fonksiyonu çağrılır, böylece boşta kalan bağlantılar kapatılır ve kaynaklar serbest bırakılır, böylece uygulama gereksiz yere kaynak tüketmez ve bağlantı yönetimi etkin bir şekilde yapılır
@@ -201,7 +261,6 @@ void PollReactor::run() // Poll döngüsünü başlatır, bu fonksiyon bloklayı
             _sweep_counter = 0; // Sayaç sıfırlanır, böylece bir sonraki zaman aşımı kontrolü için sayaç tekrar artırılmaya başlanır, bu sayede uygulama gereksiz yere kaynak tüketmez ve bağlantı yönetimi etkin bir şekilde yapılır
         }
     }
- 
     std::cout << "[PollReactor] Döngü sonlandı" << std::endl;
 }
  
@@ -624,4 +683,76 @@ bool PollReactor::is_server_fd(int fd) const // Belirli bir dosya tanıtıcısı
             return true;
     }
     return (false);
+}
+
+bool PollReactor::watch_fd(int fd, short events, FdCallback callback, void *ctx)
+{
+    int i;
+
+    if (fd < 0 || callback == NULL)
+        return false;
+
+    i = 0;
+    while (i < MAX_EXTERNAL_FDS)
+    {
+        if (_externalFds[i].fd == fd)
+        {
+            _externalFds[i].events = events;
+            _externalFds[i].callback = callback;
+            _externalFds[i].ctx = ctx;
+            return true;
+        }
+        i++;
+    }
+
+    i = 0;
+    while (i < MAX_EXTERNAL_FDS)
+    {
+        if (_externalFds[i].fd == -1)
+        {
+            _externalFds[i].fd = fd;
+            _externalFds[i].events = events;
+            _externalFds[i].callback = callback;
+            _externalFds[i].ctx = ctx;
+            return true;
+        }
+        i++;
+    }
+
+    return false;
+}
+
+void PollReactor::update_fd(int fd, short events)
+{
+    int i;
+
+    i = 0;
+    while (i < MAX_EXTERNAL_FDS)
+    {
+        if (_externalFds[i].fd == fd)
+        {
+            _externalFds[i].events = events;
+            return;
+        }
+        i++;
+    }
+}
+
+void PollReactor::unwatch_fd(int fd)
+{
+    int i;
+
+    i = 0;
+    while (i < MAX_EXTERNAL_FDS)
+    {
+        if (_externalFds[i].fd == fd)
+        {
+            _externalFds[i].fd = -1;
+            _externalFds[i].events = 0;
+            _externalFds[i].callback = NULL;
+            _externalFds[i].ctx = NULL;
+            return;
+        }
+        i++;
+    }
 }

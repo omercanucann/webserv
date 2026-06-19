@@ -9,15 +9,12 @@
 #include <vector>
 #include "../Router/Router.hpp"
 #include "StaticHandler.hpp"
-#include "../Cgi/CgiEnv.hpp"
-#include "../Cgi/CgiProcess.hpp"
-#include <sys/wait.h>
-#include <unistd.h>
+#include "CgiHandler.hpp"
 
 class HttpRequestHandler : public IRequestHandler
 {
     public:
-        HttpRequestHandler(const Config &config);
+        HttpRequestHandler(const Config &config, PollReactor &reactor);
         virtual ~HttpRequestHandler();
 
         virtual bool handle_data(int slot_index, ConnectionSlot &slot);
@@ -27,6 +24,7 @@ class HttpRequestHandler : public IRequestHandler
 		HttpParser _parser;
 		Router     _router;
 		StaticHandler _staticHandler;
+        CgiHandler _cgiHandler;
 
         bool        _isRequestComplete(const std::string &rawRequest) const;
         bool        _hasHeaderEnd(const std::string &rawRequest, size_t &headerEnd) const;
@@ -34,22 +32,13 @@ class HttpRequestHandler : public IRequestHandler
         std::string _toLower(const std::string &str) const;
         size_t      _stringToSize(const std::string &str) const;
 
-		HttpResponse _buildResponse(const HttpRequest &request);
+		bool _buildResponse(int slot_index, const HttpRequest &request, HttpResponse &response);
 
 		bool        _isDirectory(const std::string &path) const;
 		bool        _fileExists(const std::string &path) const;
 		bool        _readFile(const std::string &path, std::string &out) const;
 		HttpResponse _makeErrorResponse(int statusCode) const;
 		std::string  _sizeToString(size_t value) const;
-
-        bool _isCgiRequest(const HttpRequest &request, const RouteResult &route) const;
-        HttpResponse _handleCgi(const HttpRequest &request, const RouteResult &route);
-
-        std::string _buildCgiScriptPath(const HttpRequest &request, const RouteResult &route) const;
-
-        bool _writeCgiInput(int fd, const std::string &body) const;
-        bool _readCgiOutput(int fd, std::string &output) const;
-        HttpResponse _makeRawCgiResponse(const std::string &output) const;
 };
 
 #endif

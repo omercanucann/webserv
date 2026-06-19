@@ -9,8 +9,10 @@
 #include <ctime>
 #include <cstdio>
 
-HttpRequestHandler::HttpRequestHandler(const Config &config) : _router(config), _staticHandler()
+HttpRequestHandler::HttpRequestHandler(const Config &config, PollReactor &reactor)
+	: _router(config), _staticHandler(), _cgiHandler()
 {
+	_cgiHandler.setReactor(&reactor);
 }
 
 HttpRequestHandler::~HttpRequestHandler()
@@ -206,201 +208,40 @@ bool HttpRequestHandler::_fileExists(const std::string &path) const
 	return true;
 }
 
-std::string HttpRequestHandler::_buildCgiScriptPath(const HttpRequest &request, const RouteResult &route) const
-{
-	std::string root;
-	std::string path;
-	std::string locationPath;
-
-	if (route.location && route.location->hasRoot)
-		root = route.location->root;
-	else if (route.server && route.server->hasRoot)
-		root = route.server->root;
-	else
-		root = "www";
-
-	path = request.getPath();
-
-	if (route.location)
-		locationPath = route.location->path;
-
-	if (locationPath != "/" && path.compare(0, locationPath.length(), locationPath) == 0)
-		path = path.substr(locationPath.length());
-
-	if (path.empty())
-		return root;
-
-	if (root[root.length() - 1] == '/' && path[0] == '/')
-		return root + path.substr(1);
-
-	if (root[root.length() - 1] != '/' && path[0] != '/')
-		return root + "/" + path;
-
-	return root + path;
-}
-
-
-
-bool HttpRequestHandler::_writeCgiInput(int fd, const std::string &body) const
-{
-	size_t written = 0;
-	ssize_t n;
-	size_t retry = 0;
-
-	while (written < body.size())
-	{
-		n = write(fd, body.c_str() + written, body.size() - written);
-		if (n > 0)
-		{
-			written += static_cast<size_t>(n);
-			retry = 0;
-		}
-		else
-		{
-			retry++;
-			if (retry > 11000)
-			{
-				close(fd);
-				return false;
-			}
-			usleep(1000);
-		}
-	}
-	
-	close(fd);
-	return true;
-}
-
-bool HttpRequestHandler::_readCgiOutput(int fd, std::string &output) const
-{
-	char buffer[3072];
-	ssize_t n;
-	int retry = 0;
-	
-	while (true)
-	{
-		n = read(fd, buffer, sizeof(buffer));
-		if (n > 0)
-		{
-			output.append(buffer, static_cast<size_t>(n));
-			retry = 0;
-		}
-		else if (n == 0)
-			break;
-		else
-		{
-			retry++;
-			if (retry > 11000)
-			{
-				close(fd);
-				return false;
-			}
-			usleep(1000);
-		}
-	}
-	close(fd);
-	return true;
-}
-
-HttpResponse HttpRequestHandler::_makeRawCgiResponse(const std::string &output) const
-{
-    HttpResponse response;
-
-    response.setStatus(200);
-    response.setHeader("Content-Type", "text/plain");
-    response.setBody(output);
-
-    return response;
-}
-
-
-
-HttpResponse HttpRequestHandler::_handleCgi(const HttpRequest &request, const RouteResult &route)
-{
-	CgiEnv env;
-	CgiProcess process;
-	std::string scriptPath;
-	std::string output;
-	char **envp;
-	int status;
-
-	if (request.getMethod() != "GET" && request.getMethod() != "POST")
-		return _makeErrorResponse(405);
-
-	if (route.location == NULL || route.location->cgiInterpreter.empty())
-		return _makeErrorResponse(500);
-
-	scriptPath = _buildCgiScriptPath(request, route);
-
-	if (!_fileExists(scriptPath))
-		return _makeErrorResponse(404);
-
-	if (_isDirectory(scriptPath))
-		return _makeErrorResponse(403);
-
-	envp = env.build(request, route, scriptPath, "");
-
-	if (!process.start(route.location->cgiInterpreter, scriptPath, envp))
-		return _makeErrorResponse(500);
-	
-	if (!_writeCgiInput(process.getStdinFd() ,request.getBody()))
-	{
-		close(process.getStdoutFd());
-		waitpid(process.getPid(), &status, 0);
-		return _makeErrorResponse(500);
-	}
-
-	if (!_readCgiOutput(process.getStdoutFd(), output))
-        return _makeErrorResponse(500);
-
-	if (waitpid(process.getPid(), &status, 0) == -1)
-	{
-		close(process.getStdoutFd());
-        return _makeErrorResponse(500);
-	}
-
-	return _makeRawCgiResponse(output);;
-}
-
-bool HttpRequestHandler::_isCgiRequest(const HttpRequest &request, const RouteResult &route) const
-{
-	std::string path;
-	std::string extension;
-
-	if (route.location == NULL)
-		return false;
-
-	if (!route.location->hasCGI)
-		return false;
-
-	extension = route.location->cgiExtension;
-	if (extension.empty())
-		return false;
-
-	path = request.getPath();
-	if (path.length() < extension.length())
-		return false;
-
-	return path.substr(path.length() - extension.length()) == extension;
-}
-
-HttpResponse HttpRequestHandler::_buildResponse(const HttpRequest &request)
+bool HttpRequestHandler::_buildResponse(int slot_index,
+										const HttpRequest &request,
+										HttpResponse &response)
 {
 	RouteResult route = _router.route(request);
 
 	if (route.server == NULL)
-		return _makeErrorResponse(500);
+	{
+		response = _makeErrorResponse(500);
+		return true;
+	}
 	
 	if (route.location == NULL)
-		return _makeErrorResponse(404);
+	{
+		response = _makeErrorResponse(404);
+		return true;
+	}
 
-	if (_isCgiRequest(request, route))
-		return _handleCgi(request, route);
+	if (_cgiHandler.isCgiRequest(request, route))
+	{
+		if (_cgiHandler.start(slot_index, request, route))
+			return false;
+		response = _makeErrorResponse(500);
+		return true;
+	}
 
 	if (request.getMethod() == "GET" || request.getMethod() == "DELETE" || request.getMethod() == "POST")
-		return _staticHandler.handle(request, route);
+	{
+		response = _staticHandler.handle(request, route);
+		return true;
+	}
 
-	return _makeErrorResponse(405);
+	response = _makeErrorResponse(405);
+	return true;
 }
 
 bool HttpRequestHandler::handle_data(int slot_index, ConnectionSlot &slot)
@@ -410,8 +251,6 @@ bool HttpRequestHandler::handle_data(int slot_index, ConnectionSlot &slot)
 	HttpResponse response;
 	std::string rawResponse;
 
-	(void)slot_index;
-
 	rawRequest.assign(slot.readbuffer.begin(), slot.readbuffer.end());
 
 	if (!_isRequestComplete(rawRequest))
@@ -420,7 +259,11 @@ bool HttpRequestHandler::handle_data(int slot_index, ConnectionSlot &slot)
 	try
 	{
 		request = _parser.parse(rawRequest);
-		response = _buildResponse(request);
+		if (!_buildResponse(slot_index, request, response))
+		{
+			slot.request_complete = true;
+			return false;
+		}
 	}
 	catch (const HttpParser::ParseException &e)
 	{
@@ -443,6 +286,7 @@ bool HttpRequestHandler::handle_data(int slot_index, ConnectionSlot &slot)
 
 void HttpRequestHandler::handle_close(int slot_index)
 {
+	_cgiHandler.closeClientSessions(slot_index);
 	std::cout << "[HttpRequestHandler] connection closed: slot["
 			  << slot_index << "]" << std::endl;
 }

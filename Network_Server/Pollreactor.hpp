@@ -18,6 +18,7 @@
 #include "../utils/Utils.hpp"
 
 typedef void (*DataCallback)(void *ctx, ConnectionSlot &slot);
+typedef void (*FdCallback)(void *ctx, int fd, short revents);
 
 class PollReactor
 {
@@ -43,6 +44,10 @@ class PollReactor
         int  active_connections() const; // Şu anda aktif olan istemci bağlantılarının sayısını döndürür, sunucu soketleri sayılmaz
         bool is_server_fd(int fd) const; // Verilen dosya tanıtıcısının bir sunucu soketi olup olmadığını kontrol eder, true ise bu fd'ye gelen bağlantılar accept() ile yeni slotlara atanır
     
+        bool watch_fd(int fd, short events, FdCallback callback, void *ctx);
+        void update_fd(int fd, short events);
+        void unwatch_fd(int fd);
+
     private:
         void _accept_client(int server_slot_index); // Belirli bir sunucu slotuna gelen yeni bağlantıyı kabul eder, bu genellikle accept() çağrısı yapar ve yeni bir istemci slotu oluşturur
         void _read_slot(int slot_index); // Belirli bir slotta veri okumaya çalışır, bu genellikle recv() çağrısı yapar, okunan verileri slotun readbuffer'ına ekler ve üst katmana iletmek için on_data callback'ini çağırır
@@ -66,6 +71,20 @@ class PollReactor
         static const int SWEEP_INTERVAL = 100; // Her 100 poll() turunda bir tarama
         PollReactor(const PollReactor&); // Kopyalama constructor'ı, bu sınıfın kopyalanmasını engellemek için private ve tanımsız bırakılmıştır
         PollReactor& operator=(const PollReactor&); // Atama operatorü, bu sınıfın kopyalanmasını engellemek için private ve tanımsız bırakılmıştır
+
+        struct ExternalFd
+        {
+            int fd;
+            short events;
+            FdCallback callback;
+            void *ctx;
+        
+            ExternalFd() : fd(-1), events(0), callback(NULL), ctx(NULL) {}
+        };
+
+        
+        static const int MAX_EXTERNAL_FDS = 1024;
+        ExternalFd _externalFds[MAX_EXTERNAL_FDS];
 };
 
 #endif

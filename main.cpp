@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
     SignalGuard::install();
 
     PollReactor reactor;
-    HttpRequestHandler handler(config);
+    HttpRequestHandler handler(config, reactor);
     ReactorBridge bridge(reactor, handler);
 
     bridge.activate();

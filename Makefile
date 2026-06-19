@@ -30,6 +30,7 @@ SRCS    :=  main.cpp                      \
 			Http/AutoIndex.cpp \
 			Cgi/CgiEnv.cpp \
 			Cgi/CgiProcess.cpp \
+			Http/CgiHandler.cpp \
 
 OBJS    := $(patsubst %.cpp, $(OBJDIR)/%.o, $(notdir $(SRCS)))
 
