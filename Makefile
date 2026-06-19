@@ -28,6 +28,8 @@ SRCS    :=  main.cpp                      \
 			Router/Router.cpp \
 			Http/StaticHandler.cpp \
 			Http/AutoIndex.cpp \
+			Cgi/CgiEnv.cpp \
+			Cgi/CgiProcess.cpp \
 
 OBJS    := $(patsubst %.cpp, $(OBJDIR)/%.o, $(notdir $(SRCS)))
 
@@ -64,6 +66,9 @@ $(OBJDIR)/%.o: Config/%.cpp | $(OBJDIR)
 	@echo "  CC $<"
 
 $(OBJDIR)/%.o: Router/%.cpp | $(OBJDIR)
+	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
+
+$(OBJDIR)/%.o: Cgi/%.cpp | $(OBJDIR)
 	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
 
 $(OBJDIR):

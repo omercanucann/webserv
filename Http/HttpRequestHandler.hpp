@@ -9,6 +9,10 @@
 #include <vector>
 #include "../Router/Router.hpp"
 #include "StaticHandler.hpp"
+#include "../Cgi/CgiEnv.hpp"
+#include "../Cgi/CgiProcess.hpp"
+#include <sys/wait.h>
+#include <unistd.h>
 
 class HttpRequestHandler : public IRequestHandler
 {
@@ -37,6 +41,15 @@ class HttpRequestHandler : public IRequestHandler
 		bool        _readFile(const std::string &path, std::string &out) const;
 		HttpResponse _makeErrorResponse(int statusCode) const;
 		std::string  _sizeToString(size_t value) const;
+
+        bool _isCgiRequest(const HttpRequest &request, const RouteResult &route) const;
+        HttpResponse _handleCgi(const HttpRequest &request, const RouteResult &route);
+
+        std::string _buildCgiScriptPath(const HttpRequest &request, const RouteResult &route) const;
+
+        bool _writeCgiInput(int fd, const std::string &body) const;
+        bool _readCgiOutput(int fd, std::string &output) const;
+        HttpResponse _makeRawCgiResponse(const std::string &output) const;
 };
 
 #endif
