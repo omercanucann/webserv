@@ -98,7 +98,7 @@ void PollReactor::run() // Poll döngüsünü başlatır, bu fonksiyon bloklayı
     _running = true; // Olay döngüsünü başlatır, bu bayrak true olduğu sürece döngü devam eder, request_shutdown() fonksiyonu çağrıldığında bu bayrak false yapılır ve döngü güvenli bir şekilde sonlanır
     std::cout << "[PollReactor] Olay döngüsü başlatıldı (" << _server_count << " sunucu)" << std::endl;
  
-    while (_running) // Olay döngüsü, bu döngü içinde poll() fonksiyonu kullanılarak tüm slotlar izlenir, gelen olaylara göre uygun işlemler yapılır, bu döngü request_shutdown() fonksiyonu çağrıldığında sonlanır
+    while (_running && !SignalHandler::shutdown_requested()) // Olay döngüsü, bu döngü içinde poll() fonksiyonu kullanılarak tüm slotlar izlenir, gelen olaylara göre uygun işlemler yapılır, bu döngü request_shutdown() fonksiyonu çağrıldığında veya SignalHandler tarafından bir shutdown sinyali alındığında sonlanır
     {
         pollCount = 0;
 

@@ -17,6 +17,7 @@ SRCS    :=  main.cpp                      \
             Network_Server/Pollreactor.cpp    \
             Network_Server/Reactorbridge.cpp  \
             Network_Server/Signalguard.cpp    \
+            Network_Server/Signals.cpp        \
             utils/ft_memset.cpp \
 			Http/HttpParser.cpp \
 			Http/HttpRequest.cpp \

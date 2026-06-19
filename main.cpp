@@ -1,6 +1,7 @@
 #include "../Config/ConfigParser.hpp"
 #include "../Network_Server/Socketbinder.hpp"
 #include "../Network_Server/Signalguard.hpp"
+#include "../Network_Server/Signals.hpp"
 #include "../Network_Server/Pollreactor.hpp"
 #include "../Network_Server/Reactorbridge.hpp"
 #include "../Http/HttpRequestHandler.hpp"
@@ -31,6 +32,7 @@ int main(int argc, char* argv[])
     }
 
     SignalGuard::install();
+    SignalHandler::install();
 
     PollReactor reactor;
     HttpRequestHandler handler(config, reactor);

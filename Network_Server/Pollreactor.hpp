@@ -4,6 +4,7 @@
 #include "Nettypes.hpp"
 #include "Connectionslot.hpp"
 #include "Socketbinder.hpp"
+#include "Signals.hpp"
 #include <poll.h>
 #include <vector>
 #include <sys/socket.h>
