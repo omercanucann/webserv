@@ -427,7 +427,7 @@ void PollReactor::queue_response(int slot_index, const std::vector<char>& data)
     if (slot_index < 0 || slot_index >= MAX_SLOTS)
         return;
  
-    ConnectionSlot &slot = _slots[slot_index];
+    ConnectionSlot &slot = _slots[slot_index]; // Yanıt verilerini kuyruğa eklemek için slotu alır, bu slot genellikle bağlantının durumunu, dosya tanıtıcısını, uzak IP adresini ve portunu, yazma ve okuma buffer'larını tutar
     if (slot.is_empty() || slot.fd < 0)
         return;
  

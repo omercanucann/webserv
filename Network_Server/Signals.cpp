@@ -2,7 +2,6 @@
 #include <iostream>
 #include <cstring>
 
-// Global static member initialization
 volatile sig_atomic_t SignalHandler::_shutdown_flag = 0;
 volatile sig_atomic_t SignalHandler::_reload_flag = 0;
 volatile sig_atomic_t SignalHandler::_child_terminated = 0;
@@ -12,58 +11,48 @@ void SignalHandler::install()
     struct sigaction sa;
     struct sigaction oldsa;
 
-    // sigaction yapısını sıfırla
     std::memset(&sa, 0, sizeof(sa));
 
-    // Signal handler fonksiyonunu ata
     sa.sa_handler = _handler;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
 
-    // SIGINT - Terminal kesintisi (Ctrl+C)
     if (sigaction(SIGINT, &sa, &oldsa) < 0)
-        std::cerr << "[SignalHandler] SIGINT kurulumu başarısız" << std::endl;
+        std::cerr << "[SignalHandler] SIGINT Installation failed.z" << std::endl;
 
-    // SIGTERM - Programı sonlandırma sinyali
-    if (sigaction(SIGTERM, &sa, &oldsa) < 0)
-        std::cerr << "[SignalHandler] SIGTERM kurulumu başarısız" << std::endl;
+    if (sigaction(SIGTERM, &sa, &oldsa) < 0) 
+        std::cerr << "[SignalHandler] SIGTERM Installation failed.z" << std::endl;
 
-    // SIGQUIT - Quit sinyali (Ctrl+\)
     if (sigaction(SIGQUIT, &sa, &oldsa) < 0)
-        std::cerr << "[SignalHandler] SIGQUIT kurulumu başarısız" << std::endl;
+        std::cerr << "[SignalHandler] SIGQUIT Installation failed.z" << std::endl;
 
-    // SIGABRT - Programı sonlandırma sinyali (abort())
     if (sigaction(SIGABRT, &sa, &oldsa) < 0)
-        std::cerr << "[SignalHandler] SIGABRT kurulumu başarısız" << std::endl;
+        std::cerr << "[SignalHandler] SIGABRT Installation failed.z" << std::endl;
 
-    // SIGHUP - Bağlantı kopması / Konfigürasyon yenileme
     if (sigaction(SIGHUP, &sa, &oldsa) < 0)
-        std::cerr << "[SignalHandler] SIGHUP kurulumu başarısız" << std::endl;
+        std::cerr << "[SignalHandler] SIGHUP Installation failed.z" << std::endl;
 
-    // SIGPIPE - Broken pipe (yazma işlemi başarısız olduğunda)
-    // Bu sinyali yoksayıyoruz, çünkü write() -1 döndürsün
     std::memset(&sa, 0, sizeof(sa));
     sa.sa_handler = SIG_IGN;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
     if (sigaction(SIGPIPE, &sa, &oldsa) < 0)
-        std::cerr << "[SignalHandler] SIGPIPE kurulumu başarısız" << std::endl;
+        std::cerr << "[SignalHandler] SIGPIPE Installation failed.z" << std::endl;
 
-    // SIGCHLD - Child process sonlandı (CGI işlemleri için)
     std::memset(&sa, 0, sizeof(sa));
     sa.sa_handler = _child_handler;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
     if (sigaction(SIGCHLD, &sa, &oldsa) < 0)
-        std::cerr << "[SignalHandler] SIGCHLD kurulumu başarısız" << std::endl;
+        std::cerr << "[SignalHandler] SIGCHLD Installation failed.z" << std::endl;
 
-    std::cout << "[SignalHandler] Tüm sinyaller kuruldu:" << std::endl;
+    std::cout << "[SignalHandler] All signals have been established: " << std::endl;
     std::cout << "  - SIGINT (Ctrl+C)" << std::endl;
     std::cout << "  - SIGTERM (kill)" << std::endl;
     std::cout << "  - SIGQUIT (Ctrl+\\)" << std::endl;
     std::cout << "  - SIGABRT (abort)" << std::endl;
     std::cout << "  - SIGHUP (reload)" << std::endl;
-    std::cout << "  - SIGPIPE (yoksayıldı)" << std::endl;
+    std::cout << "  - SIGPIPE (ignored)" << std::endl;
     std::cout << "  - SIGCHLD (child process)" << std::endl;
 }
 
@@ -74,7 +63,7 @@ bool SignalHandler::shutdown_requested()
 
 bool SignalHandler::reload_requested()
 {
-    return _reload_flag != 0;
+    return _reload_flag != 0; 
 }
 
 void SignalHandler::clear_reload_flag()
@@ -96,12 +85,12 @@ void SignalHandler::_handler(int signum)
 {
     if (signum == SIGINT || signum == SIGTERM || signum == SIGQUIT || signum == SIGABRT)
     {
-        std::cerr << "\n[SignalHandler] Signal alındı: " << signum << " - Kapanıyor..." << std::endl;
+        std::cerr << "\n[SignalHandler] Signal received: " << signum << " - It's closing...." << std::endl;
         _shutdown_flag = 1;
     }
     else if (signum == SIGHUP)
     {
-        std::cerr << "[SignalHandler] SIGHUP alındı - Konfigürasyon yenileniyor..." << std::endl;
+        std::cerr << "[SignalHandler] SIGHUP received - Configuration reloading..." << std::endl;
         _reload_flag = 1;
     }
 }
@@ -114,10 +103,8 @@ void SignalHandler::_child_handler(int signum)
 
 SignalHandler::SignalHandler()
 {
-    // Private constructor - static üyeler için kullanılmaz
 }
 
 SignalHandler::~SignalHandler()
 {
-    // Destructor - hiçbir şey yapmaz
 }
