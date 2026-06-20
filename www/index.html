@@ -1,1 +1,310 @@
-<h1>Hello static</h1>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Webserv Test Page</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f6f7f9;
+            --panel: #ffffff;
+            --text: #20242a;
+            --muted: #68717d;
+            --line: #d9dee5;
+            --accent: #1664d9;
+            --ok: #167c3a;
+            --bad: #b42318;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        main {
+            max-width: 1040px;
+            margin: 0 auto;
+            padding: 28px 18px 48px;
+        }
+
+        header {
+            margin-bottom: 22px;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 30px;
+        }
+
+        h2 {
+            margin: 0 0 12px;
+            font-size: 18px;
+        }
+
+        p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.45;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 14px;
+        }
+
+        section {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        a,
+        button {
+            min-height: 36px;
+            border-radius: 6px;
+            font: inherit;
+        }
+
+        a {
+            display: inline-flex;
+            align-items: center;
+            margin: 4px 6px 4px 0;
+            padding: 8px 10px;
+            color: var(--accent);
+            border: 1px solid var(--line);
+            text-decoration: none;
+            background: #fff;
+        }
+
+        button {
+            border: 0;
+            padding: 8px 12px;
+            color: #fff;
+            background: var(--accent);
+            cursor: pointer;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            min-height: 36px;
+            margin: 6px 0 10px;
+            padding: 8px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            font: inherit;
+        }
+
+        textarea {
+            min-height: 78px;
+            resize: vertical;
+        }
+
+        label {
+            display: block;
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        pre {
+            min-height: 94px;
+            margin: 14px 0 0;
+            padding: 12px;
+            overflow: auto;
+            white-space: pre-wrap;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: #111827;
+            color: #e5e7eb;
+            font-size: 13px;
+        }
+
+        .status {
+            display: inline-block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .ok {
+            color: var(--ok);
+        }
+
+        .bad {
+            color: var(--bad);
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <header>
+            <h1>Webserv Test Page</h1>
+            <p>Use this page in the browser to check static files, errors, redirects, upload, DELETE and Python CGI.</p>
+        </header>
+
+        <div class="grid">
+            <section>
+                <h2>Static and Routing</h2>
+                <a href="/">GET /</a>
+                <a href="/about.html">GET /about.html</a>
+                <a href="/missing-file.html">404 test</a>
+                <a href="/folder/">Directory index</a>
+                <a href="/images/">Autoindex route</a>
+                <a href="/old">Redirect route</a>
+            </section>
+
+            <section>
+                <h2>CGI GET</h2>
+                <p>Expected: method, query and body are printed by the script.</p>
+                <a href="/cgi/echo.py?name=webserv&method=get">Open CGI GET</a>
+                <button type="button" onclick="runCgiGet()">Fetch CGI GET</button>
+                <pre id="cgi-get-output">No request yet.</pre>
+            </section>
+
+            <section>
+                <h2>CGI POST</h2>
+                <label for="cgi-body">POST body</label>
+                <textarea id="cgi-body">name=webserv&mode=post</textarea>
+                <button type="button" onclick="runCgiPost()">Send CGI POST</button>
+                <pre id="cgi-post-output">No request yet.</pre>
+            </section>
+
+            <section>
+                <h2>Upload</h2>
+                <p>Browser multipart upload test for the configured upload route.</p>
+                <form action="/upload" method="post" enctype="multipart/form-data">
+                    <label for="upload-file">Choose file</label>
+                    <input id="upload-file" name="file" type="file">
+                    <button type="submit">Upload file</button>
+                </form>
+                <label for="raw-upload-body">Raw POST body</label>
+                <textarea id="raw-upload-body">raw upload body from index.html</textarea>
+                <button type="button" onclick="runRawUpload()">Send raw POST</button>
+                <pre id="upload-output">No request yet.</pre>
+            </section>
+
+            <section>
+                <h2>DELETE</h2>
+                <p>Type a file path that exists under your upload area, then send DELETE.</p>
+                <label for="delete-path">Path</label>
+                <input id="delete-path" value="/uploads/upload_test.bin">
+                <button type="button" onclick="runDelete()">Send DELETE</button>
+                <pre id="delete-output">No request yet.</pre>
+            </section>
+
+            <section>
+                <h2>Quick Status</h2>
+                <button type="button" onclick="runSmoke()">Run smoke checks</button>
+                <div id="smoke-status" class="status">Idle</div>
+                <pre id="smoke-output">No request yet.</pre>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        function show(id, response, body) {
+            document.getElementById(id).textContent =
+                "HTTP " + response.status + " " + response.statusText + "\n\n" + body;
+        }
+
+        function showError(id, error) {
+            document.getElementById(id).textContent = "Request failed:\n" + error;
+        }
+
+        function runCgiGet() {
+            fetch("/cgi/echo.py?name=webserv&method=get")
+                .then(function (response) {
+                    return response.text().then(function (body) {
+                        show("cgi-get-output", response, body);
+                    });
+                })
+                .catch(function (error) {
+                    showError("cgi-get-output", error);
+                });
+        }
+
+        function runCgiPost() {
+            fetch("/cgi/echo.py", {
+                method: "POST",
+                headers: {"Content-Type": "application/x-www-form-urlencoded"},
+                body: document.getElementById("cgi-body").value
+            })
+                .then(function (response) {
+                    return response.text().then(function (body) {
+                        show("cgi-post-output", response, body);
+                    });
+                })
+                .catch(function (error) {
+                    showError("cgi-post-output", error);
+                });
+        }
+
+        function runRawUpload() {
+            fetch("/upload", {
+                method: "POST",
+                headers: {"Content-Type": "text/plain"},
+                body: document.getElementById("raw-upload-body").value
+            })
+                .then(function (response) {
+                    return response.text().then(function (body) {
+                        show("upload-output", response, body);
+                    });
+                })
+                .catch(function (error) {
+                    showError("upload-output", error);
+                });
+        }
+
+        function runDelete() {
+            fetch(document.getElementById("delete-path").value, {method: "DELETE"})
+                .then(function (response) {
+                    return response.text().then(function (body) {
+                        show("delete-output", response, body);
+                    });
+                })
+                .catch(function (error) {
+                    showError("delete-output", error);
+                });
+        }
+
+        function runSmoke() {
+            var tests = [
+                {name: "GET /", url: "/", ok: 200},
+                {name: "GET /about.html", url: "/about.html", ok: 200},
+                {name: "GET missing file", url: "/missing-file.html", ok: 404},
+                {name: "CGI GET", url: "/cgi/echo.py?smoke=1", ok: 200}
+            ];
+            var output = [];
+            var status = document.getElementById("smoke-status");
+
+            status.className = "status";
+            status.textContent = "Running";
+
+            Promise.all(tests.map(function (test) {
+                return fetch(test.url).then(function (response) {
+                    var pass = response.status === test.ok;
+                    output.push((pass ? "PASS " : "FAIL ") + test.name + " -> " + response.status);
+                    return pass;
+                }).catch(function (error) {
+                    output.push("FAIL " + test.name + " -> " + error);
+                    return false;
+                });
+            })).then(function (results) {
+                var allOk = results.every(function (value) { return value; });
+                status.className = "status " + (allOk ? "ok" : "bad");
+                status.textContent = allOk ? "All smoke checks passed" : "Some smoke checks failed";
+                document.getElementById("smoke-output").textContent = output.join("\n");
+            });
+        }
+    </script>
+</body>
+</html>
