@@ -86,7 +86,10 @@ HttpResponse StaticHandler::_handlePost(const HttpRequest &request, const RouteR
     std::string uploadDir;
     std::string fileName;
     std::string filePath;
-    std::string body;
+    std::string html;
+    std::string fileContent;
+    std::string contentType;
+    std::string publicUrl;
 
     if (!_isUploadEnabled(route))
         return HttpResponse::makeErrorResponse(403);
@@ -99,22 +102,124 @@ HttpResponse StaticHandler::_handlePost(const HttpRequest &request, const RouteR
     if (!_ensureDirectory(uploadDir))
         return HttpResponse::makeErrorResponse(500);
 
+    fileContent = request.getBody();
     fileName = _generateUploadFileName();
+
+    contentType = request.getHeader("Content-Type");
+
+    if (contentType.find("multipart/form-data") != std::string::npos)
+    {
+        size_t boundaryPos;
+        std::string boundary;
+        size_t partStart;
+        size_t headerStart;
+        size_t headerEnd;
+        size_t dataStart;
+        size_t dataEnd;
+        std::string partHeaders;
+        size_t namePos;
+        size_t nameEnd;
+
+        boundaryPos = contentType.find("boundary=");
+        if (boundaryPos == std::string::npos)
+            return HttpResponse::makeErrorResponse(400);
+
+        boundary = "--" + contentType.substr(boundaryPos + 9);
+
+        partStart = fileContent.find(boundary);
+        if (partStart == std::string::npos)
+            return HttpResponse::makeErrorResponse(400);
+
+        headerStart = fileContent.find("\r\n", partStart);
+        if (headerStart == std::string::npos)
+            return HttpResponse::makeErrorResponse(400);
+        headerStart += 2;
+
+        headerEnd = fileContent.find("\r\n\r\n", headerStart);
+        if (headerEnd == std::string::npos)
+            return HttpResponse::makeErrorResponse(400);
+
+        partHeaders = fileContent.substr(headerStart, headerEnd - headerStart);
+
+        dataStart = headerEnd + 4;
+        dataEnd = fileContent.find("\r\n" + boundary, dataStart);
+        if (dataEnd == std::string::npos)
+            return HttpResponse::makeErrorResponse(400);
+
+        namePos = partHeaders.find("filename=\"");
+        if (namePos != std::string::npos)
+        {
+            namePos += 10;
+            nameEnd = partHeaders.find("\"", namePos);
+            if (nameEnd != std::string::npos)
+            {
+                std::string originalName;
+                size_t slashPos;
+                size_t i;
+
+                originalName = partHeaders.substr(namePos, nameEnd - namePos);
+                slashPos = originalName.find_last_of("/\\");
+                if (slashPos != std::string::npos)
+                    originalName = originalName.substr(slashPos + 1);
+
+                i = 0;
+                while (i < originalName.length())
+                {
+                    char c = originalName[i];
+
+                    if (!((c >= 'a' && c <= 'z')
+                        || (c >= 'A' && c <= 'Z')
+                        || (c >= '0' && c <= '9')
+                        || c == '.'
+                        || c == '_'
+                        || c == '-'))
+                        originalName[i] = '_';
+                    i++;
+                }
+
+                if (!originalName.empty())
+                {
+                    std::ostringstream oss;
+
+                    oss << "upload_";
+                    oss << std::time(NULL);
+                    oss << "_";
+                    oss << originalName;
+
+                    fileName = oss.str();
+                }
+            }
+        }
+
+        fileContent = fileContent.substr(dataStart, dataEnd - dataStart);
+    }
+
     filePath = _joinPath(uploadDir, fileName);
 
-    if (!_writeFile(filePath, request.getBody()))
+    if (!_writeFile(filePath, fileContent))
         return HttpResponse::makeErrorResponse(500);
-    
-    body = "<html><body>";
-    body += "<h1>Upload successful</h1>";
-    body += "<p>Saved as: ";
-    body += fileName;
-    body += "</p>";
-    body += "</body></html>\n";
+
+    publicUrl = "/uploads/" + fileName;
+
+    html = "<html><body>";
+    html += "<h1>Upload successful</h1>";
+    html += "<p>Saved as: ";
+    html += fileName;
+    html += "</p>";
+
+    html += "<p><a href=\"";
+    html += publicUrl;
+    html += "\">Open uploaded file</a></p>";
+
+    html += "<img src=\"";
+    html += publicUrl;
+    html += "\" style=\"max-width:600px;display:block;margin-top:10px;\">";
+
+    html += "</body></html>\n";
 
     response.setStatus(201);
     response.setHeader("Content-Type", "text/html");
-    response.setBody(body);
+    response.setBody(html);
 
     return response;
 }

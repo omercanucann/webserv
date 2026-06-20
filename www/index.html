@@ -179,6 +179,13 @@
             </section>
 
             <section>
+                <h2>My Python CGI</h2>
+                <p>Runs my Python script through CGI.</p>
+                <button type="button" onclick="runMyPython()">Run Python Script</button>
+                <pre id="my-python-output">No request yet.</pre>
+            </section>
+
+            <section>
                 <h2>Upload</h2>
                 <p>Browser multipart upload test for the configured upload route.</p>
                 <form action="/upload" method="post" enctype="multipart/form-data">
@@ -248,6 +255,18 @@
                 });
         }
 
+        function runMyPython() {
+            fetch("/cgi/final_http_test.py")
+                .then(function (response) {
+                    return response.text().then(function (body) {
+                        show("my-python-output", response, body);
+                    });
+                })
+                .catch(function (error) {
+                    showError("my-python-output", error);
+                });
+        }
+
         function runRawUpload() {
             fetch("/upload", {
                 method: "POST",
@@ -280,7 +299,10 @@
             var tests = [
                 {name: "GET /", url: "/", ok: 200},
                 {name: "GET /about.html", url: "/about.html", ok: 200},
+                {name: "GET /new.html", url: "/new.html", ok: 200},
+                {name: "Redirect /old", url: "/old", ok: 200},
                 {name: "GET missing file", url: "/missing-file.html", ok: 404},
+                {name: "GET /upload method not allowed", url: "/upload", ok: 405},
                 {name: "CGI GET", url: "/cgi/echo.py?smoke=1", ok: 200}
             ];
             var output = [];
