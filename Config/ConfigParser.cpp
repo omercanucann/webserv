@@ -154,15 +154,38 @@ void ConfigParser::ParseServerBlock(std::vector<std::string> &tokens, size_t &i,
 				throw ParseException("Invalid listen syntax");
 
 			std::string listenStr = tokens[i];
+			std::string portStr;
+			size_t p;
 
 			std::string::size_type colonPos = listenStr.find(":");
 			if (colonPos == std::string::npos)
-				server.listenPort = std::atoi(listenStr.c_str());
+			{
+				server.listenHost = "0.0.0.0";
+				portStr = listenStr;
+			}
 			else
 			{
 				server.listenHost = listenStr.substr(0, colonPos);
-				server.listenPort = std::atoi(listenStr.substr(colonPos + 1).c_str());
+				portStr = listenStr.substr(colonPos + 1);
 			}
+
+			if (server.listenHost != "0.0.0.0"
+				&& server.listenHost != "127.0.0.1"
+				&& server.listenHost != "localhost")
+				throw ParseException("Invalid listen host: " + server.listenHost);
+
+			if (portStr.empty())
+				throw ParseException("Invalid listen port: " + listenStr);
+
+			p = 0;
+			while (p < portStr.length())
+			{
+				if (portStr[p] < '0' || portStr[p] > '9')
+					throw ParseException("Invalid listen port: " + listenStr);
+				p++;
+			}
+
+			server.listenPort = std::atoi(portStr.c_str());
 
 			if (server.listenPort <= 0 || server.listenPort > 65535)
 				throw ParseException("Invalid listen port: " + listenStr);

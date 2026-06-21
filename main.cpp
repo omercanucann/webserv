@@ -5,7 +5,7 @@
 #include "../Network_Server/Pollreactor.hpp"
 #include "../Network_Server/Reactorbridge.hpp"
 #include "../Http/HttpRequestHandler.hpp"
-#include <cstdio>
+#include <iostream>
 #include <cstring>
 #include <string>
 
@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
     }
     catch (const ConfigParser::ParseException &e)
     {
-        fprintf(stderr, "[main] Config hatasi: %s\n", e.what());
+        std::cerr << "[main] Config hatasi: " << e.what() << std::endl;
         return 1;
     }
 
@@ -45,18 +45,18 @@ int main(int argc, char* argv[])
     {
         if (!(reactor.add_server(config.servers[i].listenHost,config.servers[i].listenPort)))
         {
-            fprintf(stderr, "[main] Port %d acilamadi\n", config.servers[i].listenPort);
+            std::cerr << "[main] Port " << config.servers[i].listenPort
+                << " acilamadi" << std::endl;
             return 1;
         }
         i++;
     }
     
 
-    fprintf(stderr, "[main] Sunucu hazır. Port(lar) dinleniyor...\n");
-    fprintf(stderr, "[main] Durdurmak için Ctrl+C\n");
-
+    std::cerr << "[main] Sunucu hazir. Port(lar) dinleniyor..." << std::endl;
+    std::cerr << "[main] Durdurmak icin Ctrl+C" << std::endl;
     reactor.run();
 
-    fprintf(stderr, "[main] Temiz çıkış\n");
+    std::cerr << "[main] Temiz cikis" << std::endl;
     return 0;
 }
