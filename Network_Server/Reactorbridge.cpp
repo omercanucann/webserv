@@ -56,7 +56,7 @@ void ReactorBridge::_on_data(ConnectionSlot &slot) // PollReactor'dan gelen veri
     if (slot.self_index < 0) // Eğer slotun self_index'i geçerli değilse, bu genellikle bir hata durumunu gösterir, bu durumda hata mesajı yazdırılır ve fonksiyon döner, 
     //böylece uygulama gereksiz yere kaynak tüketmez ve bağlantı yönetimi etkin bir şekilde yapılır
     {
-        std::cout << "[ReactorBridge] HATA: self_index ayarlanmamis fd=" << slot.fd << std::endl;
+        std::cout << "[ReactorBridge] ERROR: self_index not set fd=" << slot.fd << std::endl;
         return;
     }
  
@@ -67,7 +67,7 @@ void ReactorBridge::_on_data(ConnectionSlot &slot) // PollReactor'dan gelen veri
 void ReactorBridge::_on_write(ConnectionSlot &slot) // PollReactor'dan gelen yazma olaylarını işler, bu fonksiyon genellikle slot.writebuffer'ındaki verilerin gönderilmesi tamamlandığında çağrılır, 
 // bu noktada yazma işlemi tamamlanmış olur ve gerekirse IRequestHandler'ın handle_write gibi bir fonksiyonunu çağırarak yazma işlemi tamamlandığını bildirebilir
 {
-    std::cout << "[ReactorBridge] Yanit tamamlandi: slot[" << slot.self_index << "] fd=" << slot.fd << std::endl;
+    std::cout << "[ReactorBridge] The answer is complete: slot[" << slot.self_index << "] fd=" << slot.fd << std::endl;
 
     slot.state = ConnectState_CLOSING;
 }
@@ -79,5 +79,5 @@ void ReactorBridge::_on_close(ConnectionSlot &slot) // PollReactor'dan gelen kap
     // yapmak için kullanılır
         _handler.handle_close(slot.self_index); // IRequestHandler'ın handle_close fonksiyonunu çağırarak slot_index ile ilişkili kaynakları temizlemek ve uygulama düzeyinde kapanış işlemleri yapmak için kullanılır
  
-    std::cout << "[ReactorBridge] Baglanti kapatildi: slot[" << slot.self_index << "] fd=" << slot.fd << std::endl;
+    std::cout << "[ReactorBridge] Connection closed: slot[" << slot.self_index << "] fd=" << slot.fd << std::endl;
 }

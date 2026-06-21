@@ -8,7 +8,7 @@ void SignalGuard::install() // Sinyal handler'ları kur
     signal(SIGTERM, _handler); // SIGTERM sinyalini yakala (kill komutu)
     signal(SIGPIPE, SIG_IGN);  // SIGPIPE'ı yoksay, write() -1 dönsün
  
-    std::cout << "[SignalGuard] Signal handler'lar kuruldu" << std::endl;
+    std::cout << "[SignalGuard] Signal handlers were installed." << std::endl;
 }
  
 bool SignalGuard::shutdown_requested() // Programın kapanma isteği olup olmadığını kontrol et

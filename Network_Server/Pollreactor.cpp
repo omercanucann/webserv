@@ -362,7 +362,7 @@ void PollReactor::_write_slot(int slot_index)
  
     if (slot.write_done())
     {
-        std::cout << "[PollReactor] Yanıt tamamlandı: slot[" << slot_index << "]" << std::endl;
+        std::cout << "[PollReactor] The answer is complete: slot[" << slot_index << "]" << std::endl;
  
         if (_on_write)
             _on_write(_cb_ctx, slot);
@@ -389,7 +389,7 @@ void PollReactor::_close_slot(int slot_index)
     if (slot.is_empty())
         return;
  
-    std::cout << "[PollReactor] Slot kapatılıyor: [" << slot_index << "] fd=" << slot.fd << " " << slot.remote_ip.c_str() << ":" << (unsigned)slot.remote_port << std::endl;
+    std::cout << "[PollReactor] Closing slot: [" << slot_index << "] fd=" << slot.fd << " " << slot.remote_ip.c_str() << ":" << (unsigned)slot.remote_port << std::endl;
  
     if (_on_close && !slot.is_server)
         _on_close(_cb_ctx, slot);
@@ -485,7 +485,7 @@ void PollReactor::_sweep_timeouts()
         }
     }
     if (closed > 0)
-        std::cout << "[PollReactor] Sweep: " << closed << " bağlantı kapatıldı" << std::endl;
+        std::cout << "[PollReactor] Sweep: " << closed << " connections closed" << std::endl;
 }
  
 int PollReactor::active_connections() const
