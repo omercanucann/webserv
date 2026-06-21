@@ -37,8 +37,7 @@ class HttpRequestHandler : public IRequestHandler
 		bool        _isDirectory(const std::string &path) const;
 		bool        _fileExists(const std::string &path) const;
 		bool        _readFile(const std::string &path, std::string &out) const;
-		HttpResponse _makeErrorResponse(int statusCode) const;
-		std::string  _sizeToString(size_t value) const;
+        HttpResponse _makeErrorResponse(int statusCode, const ServerConfig *server) const;
 };
 
 #endif

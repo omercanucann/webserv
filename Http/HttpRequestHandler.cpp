@@ -1,6 +1,6 @@
 #include "HttpRequestHandler.hpp"
-#include "DefaultConfig.hpp"
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <cstdlib>
 #include <sys/stat.h>
@@ -19,36 +19,35 @@ HttpRequestHandler::~HttpRequestHandler()
 {
 }
 
-std::string HttpRequestHandler::_sizeToString(size_t value) const
+HttpResponse HttpRequestHandler::_makeErrorResponse(int statusCode,
+                                                    const ServerConfig *server) const
 {
-	std::ostringstream oss;
+    HttpResponse response;
+    std::string filePath;
+    std::string body;
+    std::map<int, std::string>::const_iterator it;
 
-	oss << value;
-	return oss.str();
-}
+    if (server != NULL)
+    {
+        it = server->errorPages.find(statusCode);
+        if (it != server->errorPages.end())
+        {
+            filePath = it->second;
 
-HttpResponse HttpRequestHandler::_makeErrorResponse(int statusCode) const
-{
-	HttpResponse response;
-	std::string filePath;
-	std::string body;
+            if (_fileExists(filePath) && !_isDirectory(filePath))
+            {
+                if (_readFile(filePath, body))
+                {
+                    response.setStatus(statusCode);
+                    response.setHeader("Content-Type", "text/html");
+                    response.setBody(body);
+                    return response;
+                }
+            }
+        }
+    }
 
-	filePath = DefaultConfig::ERROR_ROOT + "/";
-	filePath += _sizeToString(static_cast<size_t>(statusCode));
-	filePath += ".html";
-
-	if (_fileExists(filePath) && !_isDirectory(filePath))
-	{
-		if (_readFile(filePath, body))
-		{
-			response.setStatus(statusCode);
-			response.setHeader("Content-Type", "text/html");
-			response.setBody(body);
-			return response;
-		}
-	}
-
-	return HttpResponse::makeErrorResponse(statusCode);
+    return HttpResponse::makeErrorResponse(statusCode);
 }
 
 std::string HttpRequestHandler::_toLower(const std::string &str) const
@@ -216,13 +215,13 @@ bool HttpRequestHandler::_buildResponse(int slot_index,
 
 	if (route.server == NULL)
 	{
-		response = _makeErrorResponse(500);
+		response = _makeErrorResponse(500, NULL);
 		return true;
 	}
 	
 	if (route.location == NULL)
 	{
-		response = _makeErrorResponse(404);
+		response = _makeErrorResponse(404, route.server);
 		return true;
 	}
 
@@ -230,7 +229,7 @@ bool HttpRequestHandler::_buildResponse(int slot_index,
 	{
 		if (_cgiHandler.start(slot_index, request, route))
 			return false;
-		response = _makeErrorResponse(500);
+		response = _makeErrorResponse(500, route.server);
 		return true;
 	}
 
@@ -240,7 +239,7 @@ bool HttpRequestHandler::_buildResponse(int slot_index,
 		return true;
 	}
 
-	response = _makeErrorResponse(405);
+	response = _makeErrorResponse(405, route.server);
 	return true;
 }
 
@@ -267,11 +266,11 @@ bool HttpRequestHandler::handle_data(int slot_index, ConnectionSlot &slot)
 	}
 	catch (const HttpParser::ParseException &e)
 	{
-		response = _makeErrorResponse(e.getStatusCode());
+		response = _makeErrorResponse(e.getStatusCode(), NULL);
 	}
 	catch (const std::exception &)
 	{
-		response = _makeErrorResponse(500);
+		response = _makeErrorResponse(500, NULL);
 	}
 
 	rawResponse = response.toString();
