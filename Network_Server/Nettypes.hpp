@@ -7,7 +7,7 @@
 #include <sys/types.h>
 
 static const int MAX_SLOTS         = 1024;
-static const int READ_CHUNK        = 16384;
+static const int READ_CHUNK        = 262144;
 static const int POLL_TIMEOUT_MS   = 5000;
 static const int CONNECT_IDLE_TIMEOUT = 60;
 static const int MAX_SERVERS       = 8;

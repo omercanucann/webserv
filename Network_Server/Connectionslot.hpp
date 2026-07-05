@@ -16,8 +16,9 @@ public:
     std::string     remote_ip;
     uint16_t        remote_port;
  
-    std::vector<char> readbuffer;
-    bool              request_complete;
+	    std::vector<char> readbuffer;
+	    bool              request_complete;
+	    bool              continue_sent;
 
     std::vector<char> writebuffer;
     size_t            write_position;
@@ -32,9 +33,10 @@ public:
         : state(ConnectState_EMPTY)
         , fd(-1)
         , is_server(false)
-        , remote_port(0)
-        , request_complete(false)
-        , write_position(0)
+	        , remote_port(0)
+	        , request_complete(false)
+	        , continue_sent(false)
+	        , write_position(0)
         , last_active(0)
         , self_index(-1)
         , origin_server_fd(-1)
@@ -48,9 +50,10 @@ public:
         remote_ip.clear();
         remote_port      = 0;
         self_index         = -1;
-        readbuffer.clear();
-        request_complete = false;
-        writebuffer.clear();
+	        readbuffer.clear();
+	        request_complete = false;
+	        continue_sent = false;
+	        writebuffer.clear();
         write_position        = 0;
         last_active      = 0;
         origin_server_fd = -1;

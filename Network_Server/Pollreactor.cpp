@@ -268,6 +268,7 @@ void PollReactor::_accept_client(int server_slot_index)
         slot.self_index            = slot_index;
         slot.origin_server_fd    = server_fd;
         slot.request_complete    = false;
+        slot.continue_sent       = false;
         slot.readbuffer.clear();
         slot.writebuffer.clear();
         slot.write_position      = 0;

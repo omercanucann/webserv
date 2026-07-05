@@ -50,6 +50,16 @@ void ConfigParser::parseLocationBlock(const std::vector<std::string> &tokens, si
 			loc.hasIndex = true;
 			i += 2;
 		}
+		else if (tokens[i] == "client_max_body_size")
+		{
+			i++;
+            if (i + 1 >= tokens.size() || tokens[i + 1] != ";")
+                throw ParseException("Invalid client_max_body_size syntax inside location");
+			loc.clientMaxBodySize =
+				static_cast<size_t>(std::strtoul(tokens[i].c_str(), NULL, 10));
+			loc.hasClientMaxBodySize = true;
+			i += 2;
+		}
 		else if (tokens[i] == "autoindex")
 		{
 			i++;

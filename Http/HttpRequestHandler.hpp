@@ -27,10 +27,21 @@ class HttpRequestHandler : public IRequestHandler
         CgiHandler _cgiHandler;
 
         bool        _isRequestComplete(const std::string &rawRequest) const;
+        bool        _isRequestComplete(const std::vector<char> &rawRequest) const;
         bool        _hasHeaderEnd(const std::string &rawRequest, size_t &headerEnd) const;
+        bool        _hasHeaderEnd(const std::vector<char> &rawRequest, size_t &headerEnd) const;
         std::string _getHeaderValue(const std::string &headerPart, const std::string &key) const;
         std::string _toLower(const std::string &str) const;
         size_t      _stringToSize(const std::string &str) const;
+        bool        _parseHeaderOnlyRequest(const std::string &rawRequest, HttpRequest &request) const;
+        bool        _isMethodAllowedByRoute(const std::string &method, const RouteResult &route) const;
+        std::string _allowedMethodsToString(const RouteResult &route) const;
+        bool        _makeEarlyResponse(const std::string &rawRequest, HttpResponse &response) const;
+        bool        _makeEarlyResponse(const std::vector<char> &rawRequest, HttpResponse &response) const;
+        bool        _handleExpectContinueCgi(int slot_index, const std::vector<char> &rawRequest);
+        void        _reserveRequestBuffer(ConnectionSlot &slot) const;
+        void        _sendContinueIfNeeded(ConnectionSlot &slot) const;
+        static size_t _getParserLimit(const Config &config);
 
 		bool _buildResponse(int slot_index, const HttpRequest &request, HttpResponse &response);
 

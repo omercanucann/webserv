@@ -18,6 +18,10 @@ bool StaticHandler::_isUploadEnabled(const RouteResult &route) const
 
 bool StaticHandler::_isBodyTooLarge(const HttpRequest &request, const RouteResult &route) const
 {
+    if (route.location && route.location->hasClientMaxBodySize)
+        if (request.getBody().size() > route.location->clientMaxBodySize)
+            return true;
+
     if (route.server && route.server->hasClientMaxBodySize)
         if (request.getBody().size() > route.server->clientMaxBodySize)
             return true;
@@ -91,11 +95,16 @@ HttpResponse StaticHandler::_handlePost(const HttpRequest &request, const RouteR
     std::string contentType;
     std::string publicUrl;
 
-    if (!_isUploadEnabled(route))
-        return HttpResponse::makeErrorResponse(403);
-
     if (_isBodyTooLarge(request, route))
         return HttpResponse::makeErrorResponse(413);
+
+    if (!_isUploadEnabled(route))
+    {
+        response.setStatus(200);
+        response.setHeader("Content-Type", "text/plain");
+        response.setBody(request.getBody());
+        return response;
+    }
 
     uploadDir = _getUploadPath(route);
 

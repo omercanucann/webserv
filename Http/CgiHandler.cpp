@@ -86,8 +86,10 @@ CgiSession *CgiHandler::_findSessionByFd(int fd)
 
 bool CgiHandler::_writeToCgi(CgiSession &session)
 {
+    static const size_t CGI_IO_CHUNK = 262144;
     ssize_t n;
     size_t remaining;
+    size_t writeSize;
 
     if (session.stdinClosed)
         return true;
@@ -96,12 +98,27 @@ bool CgiHandler::_writeToCgi(CgiSession &session)
 
     if (remaining > 0)
     {
+        writeSize = remaining;
+        if (writeSize > CGI_IO_CHUNK)
+            writeSize = CGI_IO_CHUNK;
         n = write(session.stdinFd,
                   session.input.c_str() + session.inputSent,
-                  remaining);
+                  writeSize);
 
         if (n > 0)
             session.inputSent += static_cast<size_t>(n);
+        else if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+            return true;
+        else if (n < 0 && (errno == EPIPE || errno == EBADF))
+        {
+            if (_reactor)
+                _reactor->unwatch_fd(session.stdinFd);
+            if (session.stdinFd >= 0)
+                close(session.stdinFd);
+            session.stdinFd = -1;
+            session.stdinClosed = true;
+            return true;
+        }
         else
             return false;
     }
@@ -120,7 +137,7 @@ bool CgiHandler::_writeToCgi(CgiSession &session)
 
 bool CgiHandler::_readFromCgi(CgiSession &session)
 {
-    char buffer[4096];
+    char buffer[262144];
     ssize_t n;
 
     n = read(session.stdoutFd, buffer, sizeof(buffer));
@@ -130,6 +147,9 @@ bool CgiHandler::_readFromCgi(CgiSession &session)
         session.output.append(buffer, static_cast<size_t>(n));
         return true;
     }
+
+    if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+        return true;
 
     if (n == 0)
     {

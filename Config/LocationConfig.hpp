@@ -16,6 +16,9 @@ struct LocationConfig
     std::string index;
     bool hasIndex;
 
+    size_t clientMaxBodySize;
+    bool hasClientMaxBodySize;
+
     bool autoindex;
     bool hasAutoIndex;
     // autoindex ve hasautoindex false ise location tanımlanmadı.
@@ -38,6 +41,8 @@ struct LocationConfig
         hasAllowedMethods(false),
         hasRoot(false),
         hasIndex(false),
+        clientMaxBodySize(0),
+        hasClientMaxBodySize(false),
         autoindex(false),
         hasAutoIndex(false),
         redirectStatus(0),
