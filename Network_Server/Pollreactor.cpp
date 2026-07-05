@@ -218,7 +218,6 @@ void PollReactor::_accept_client(int server_slot_index)
     socklen_t          addr_len;
     int server_fd;
     int slot_index;
-    char ip_buf[INET_ADDRSTRLEN];
  
     addr_len = sizeof(client_addr);
     server_fd = _slots[server_slot_index].fd;
@@ -250,13 +249,21 @@ void PollReactor::_accept_client(int server_slot_index)
             continue;
         }
 
-        inet_ntop(AF_INET, &client_addr.sin_addr, ip_buf, sizeof(ip_buf));
+        unsigned char *ip_bytes;
+        std::ostringstream ip_stream;
+
+        ip_bytes = reinterpret_cast<unsigned char *>(&client_addr.sin_addr.s_addr);
+
+        ip_stream << static_cast<unsigned int>(ip_bytes[0]) << "."
+                << static_cast<unsigned int>(ip_bytes[1]) << "."
+                << static_cast<unsigned int>(ip_bytes[2]) << "."
+                << static_cast<unsigned int>(ip_bytes[3]);
 
         ConnectionSlot &slot     = _slots[slot_index];
         slot.state               = ConnectState_READING;
         slot.fd                  = client_fd;
         slot.is_server           = false;
-        slot.remote_ip           = ip_buf;
+        slot.remote_ip           = ip_stream.str();
         slot.remote_port         = ntohs(client_addr.sin_port);
         slot.self_index            = slot_index;
         slot.origin_server_fd    = server_fd;
@@ -273,97 +280,67 @@ void PollReactor::_accept_client(int server_slot_index)
         if (slot_index >= _slot_count)
             _slot_count = slot_index + 1;
  
-        std::cout << "[PollReactor] New link: slot[" << slot_index << "] fd=" << client_fd << " " << ip_buf << ":" << (unsigned)ntohs(client_addr.sin_port) << std::endl;
+        std::cout << "[PollReactor] New link: slot[" << slot_index << "] fd=" << client_fd << " " << slot.remote_ip << ":" << (unsigned)ntohs(client_addr.sin_port) << std::endl;
     }
 }
  
 void PollReactor::_read_slot(int slot_index)
 {
-    char  buf[READ_CHUNK];
-    bool  got_data;
-    bool  connect_closed;
- 
+    char buf[READ_CHUNK];
     ConnectionSlot &slot = _slots[slot_index];
-    got_data   = false;
-    connect_closed = false;
 
-    while (true)
+    ssize_t n = read(slot.fd, buf, sizeof(buf));
+
+    if (n > 0)
     {
-        ssize_t n = read(slot.fd, buf, sizeof(buf));
- 
-        if (n > 0)
-        {
-            slot.readbuffer.insert(slot.readbuffer.end(), buf, buf + n);
-            got_data = true;
-            slot.touch();
-            continue;
-        }
- 
-        if (n == 0)
-        {
-            connect_closed = true;
-            break;
-        }
+        slot.readbuffer.insert(slot.readbuffer.end(), buf, buf + n);
+        slot.touch();
 
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-            break;
- 
-        std::cout << "[PollReactor] read() slot[" << slot_index << "]: " << strerror(errno) << std::endl;
-        connect_closed = true;
-        break;
+        if (_on_data)
+            _on_data(_cb_ctx, slot);
+        return;
     }
- 
-    if (connect_closed)
+
+    if (n == 0)
     {
         _close_slot(slot_index);
         return;
     }
- 
-    if (got_data && _on_data)
-        _on_data(_cb_ctx, slot);
+
+    std::cout << "[PollReactor] read() failed: slot[" << slot_index << "]" << std::endl;
+    _close_slot(slot_index);
 }
  
 void PollReactor::_write_slot(int slot_index)
 {
     ConnectionSlot &slot = _slots[slot_index];
- 
+
     if (slot.writebuffer.empty() || slot.write_done())
     {
         _sync_poll_events(slot_index);
         return;
     }
 
-    while (!slot.write_done())
+    const char *data = slot.writebuffer.data() + slot.write_position;
+    size_t remain = slot.pending_write();
+    ssize_t n = write(slot.fd, data, remain);
+
+    if (n > 0)
     {
-        const char *data;
-        size_t      remain;
-        ssize_t     n;
- 
-        data   = slot.writebuffer.data() + slot.write_position;
-        remain = slot.pending_write();
-        n = write(slot.fd, data, remain);
-        if (n > 0)
-        {
-            slot.write_position += (size_t)n;
-            slot.touch();
-            continue;
-        }
- 
-        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
-            break;
- 
-        if (n <= 0)
-        {
-            std::cout << "[PollReactor] write() slot[" << slot_index << "]: " << ((n == 0) ? "closed" : strerror(errno)) << std::endl;
-            _close_slot(slot_index);
-            return;
-        }
+        slot.write_position += static_cast<size_t>(n);
+        slot.touch();
     }
- 
+    else
+    {
+        std::cout << "[PollReactor] write() failed: slot[" << slot_index << "]" << std::endl;
+        _close_slot(slot_index);
+        return;
+    }
+
     if (slot.write_done())
     {
         std::cout << "[PollReactor] The answer is complete: slot[" << slot_index << "]" << std::endl;
- 
+
         if (_on_write)
             _on_write(_cb_ctx, slot);
 
@@ -371,8 +348,8 @@ void PollReactor::_write_slot(int slot_index)
         {
             slot.readbuffer.clear();
             slot.writebuffer.clear();
-            slot.write_position      = 0;
-            slot.request_complete    = false;
+            slot.write_position = 0;
+            slot.request_complete = false;
             _sync_poll_events(slot_index);
         }
         else

@@ -93,13 +93,15 @@ bool CgiHandler::_writeToCgi(CgiSession &session)
         return true;
 
     remaining = session.input.size() - session.inputSent;
+
     if (remaining > 0)
     {
-        n = write(session.stdinFd, session.input.c_str() + session.inputSent, remaining);
+        n = write(session.stdinFd,
+                  session.input.c_str() + session.inputSent,
+                  remaining);
+
         if (n > 0)
             session.inputSent += static_cast<size_t>(n);
-        else if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
-            return true;
         else
             return false;
     }
@@ -112,6 +114,7 @@ bool CgiHandler::_writeToCgi(CgiSession &session)
         session.stdinFd = -1;
         session.stdinClosed = true;
     }
+
     return true;
 }
 
@@ -120,21 +123,21 @@ bool CgiHandler::_readFromCgi(CgiSession &session)
     char buffer[4096];
     ssize_t n;
 
-    while (true)
+    n = read(session.stdoutFd, buffer, sizeof(buffer));
+
+    if (n > 0)
     {
-        n = read(session.stdoutFd, buffer, sizeof(buffer));
-        if (n > 0)
-            session.output.append(buffer, static_cast<size_t>(n));
-        else if (n == 0)
-        {
-            _finishSession(session);
-            return true;
-        }
-        else if (errno == EAGAIN || errno == EWOULDBLOCK)
-            return true;
-        else
-            return false;
+        session.output.append(buffer, static_cast<size_t>(n));
+        return true;
     }
+
+    if (n == 0)
+    {
+        _finishSession(session);
+        return true;
+    }
+
+    return false;
 }
 
 bool CgiHandler::isCgiRequest(const HttpRequest &request, const RouteResult &route) const

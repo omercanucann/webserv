@@ -355,7 +355,7 @@ HttpResponse StaticHandler::_handleGet(const HttpRequest &request, const RouteRe
         if (_isAutoIndexEnabled(route))
             return _autoIndex.generate(filePath, request.getPath());
     
-        return HttpResponse::makeErrorResponse(403);
+        return HttpResponse::makeErrorResponse(404);
     }
 
     if (!_readFile(filePath, body))
