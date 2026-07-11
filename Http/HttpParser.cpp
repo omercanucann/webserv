@@ -363,12 +363,11 @@ void HttpParser::validateBodyRules(HttpRequest& request, const std::string& rawB
     request.setBody("");
 }
 
-HttpRequest HttpParser::parse(const std::string& rawRequest) const
+HttpRequest HttpParser::parseHeaders(const std::string& rawRequest) const
 {
     HttpRequest request;
     size_t headerEnd;
     std::string headerPart;
-    std::string bodyPart;
     std::istringstream stream;
     std::string line;
     bool firstLine;
@@ -381,7 +380,6 @@ HttpRequest HttpParser::parse(const std::string& rawRequest) const
         throw ParseException(400, "Header section is not complete");
 
     headerPart = rawRequest.substr(0, headerEnd);
-    bodyPart = rawRequest.substr(headerEnd + 4);
 
     stream.str(headerPart);
     firstLine = true;
@@ -408,6 +406,18 @@ HttpRequest HttpParser::parse(const std::string& rawRequest) const
     if (request.getVersion() == "HTTP/1.1" && !request.hasHeader("Host"))
         throw ParseException(400, "Missing Host header");
 
+    return request;
+}
+
+HttpRequest HttpParser::parse(const std::string& rawRequest) const
+{
+    HttpRequest request;
+    size_t headerEnd;
+    std::string bodyPart;
+
+    request = parseHeaders(rawRequest);
+    headerEnd = rawRequest.find("\r\n\r\n");
+    bodyPart = rawRequest.substr(headerEnd + 4);
     validateBodyRules(request, bodyPart);
 
     return request;

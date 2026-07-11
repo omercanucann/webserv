@@ -1,6 +1,8 @@
 #include "HttpRequest.hpp"
 
 HttpRequest::HttpRequest()
+    : _bodySize(0),
+      _bodyStoredInFile(false)
 {
 }
 
@@ -52,6 +54,17 @@ void HttpRequest::setHeader(const std::string& key, const std::string& value)
 void HttpRequest::setBody(const std::string& body)
 {
     _body = body;
+    _bodyFilePath.clear();
+    _bodySize = body.size();
+    _bodyStoredInFile = false;
+}
+
+void HttpRequest::setBodyFile(const std::string& path, size_t bodySize)
+{
+    _body.clear();
+    _bodyFilePath = path;
+    _bodySize = bodySize;
+    _bodyStoredInFile = true;
 }
 
 const std::string& HttpRequest::getMethod() const
@@ -79,6 +92,21 @@ const std::string& HttpRequest::getBody() const
     return _body;
 }
 
+const std::string& HttpRequest::getBodyFilePath() const
+{
+    return _bodyFilePath;
+}
+
+size_t HttpRequest::getBodySize() const
+{
+    return _bodySize;
+}
+
+bool HttpRequest::hasBodyFile() const
+{
+    return _bodyStoredInFile;
+}
+
 std::string HttpRequest::getHeader(const std::string& key) const
 {
     std::map<std::string, std::string>::const_iterator it;
@@ -102,4 +130,7 @@ void HttpRequest::clear()
     _version.clear();
     _headers.clear();
     _body.clear();
+    _bodyFilePath.clear();
+    _bodySize = 0;
+    _bodyStoredInFile = false;
 }

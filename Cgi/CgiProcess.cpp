@@ -84,3 +84,60 @@ bool CgiProcess::start(const std::string &interpreter, const std::string &script
 
     return true;
 }
+
+bool CgiProcess::startWithInputFile(const std::string &interpreter,
+                                    const std::string &scriptPath,
+                                    char **envp,
+                                    const std::string &inputPath)
+{
+    int inputFd;
+    int outPipeCW[2];
+
+    inputFd = open(inputPath.c_str(), O_RDONLY);
+    if (inputFd < 0)
+        return false;
+
+    if (pipe(outPipeCW) == -1)
+    {
+        close(inputFd);
+        return false;
+    }
+
+    _pid = fork();
+    if (_pid == -1)
+    {
+        close(inputFd);
+        close(outPipeCW[0]);
+        close(outPipeCW[1]);
+        return false;
+    }
+
+    if (_pid == 0)
+    {
+        dup2(inputFd, STDIN_FILENO);
+        dup2(outPipeCW[1], STDOUT_FILENO);
+
+        close(inputFd);
+        close(outPipeCW[0]);
+        close(outPipeCW[1]);
+
+        char *argv[3];
+
+        argv[0] = const_cast<char *>(interpreter.c_str());
+        argv[1] = const_cast<char *>(scriptPath.c_str());
+        argv[2] = NULL;
+
+        execve(interpreter.c_str(), argv, envp);
+        exit(1);
+    }
+
+    close(inputFd);
+    close(outPipeCW[1]);
+
+    _stdinFd = -1;
+    _stdoutFd = outPipeCW[0];
+
+    _setNonBlocking(_stdoutFd);
+
+    return true;
+}

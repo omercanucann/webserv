@@ -28,10 +28,18 @@ class CgiHandler
         void _finishSession(CgiSession &session);
         void _failSession(CgiSession &session, int statusCode);
         void _cleanupDoneSessions();
+        bool _createTempFile(const std::string &prefix, int &fd, std::string &path) const;
+        bool _writeAll(int fd, const char *data, size_t size) const;
+        void _closeOutputFile(CgiSession &session);
+        void _removeOutputFile(CgiSession &session);
         static void _onFdEventStatic(void *ctx, int fd, short revents);
 
         HttpResponse _parseOutput(const std::string &output) const;
+        bool _parseOutputFile(const CgiSession &session, HttpResponse &response,
+                              size_t &bodyOffset, size_t &bodyLength) const;
         std::string _trim(const std::string &str) const;
+        std::string _toLower(const std::string &str) const;
+        std::string _sizeToString(size_t value) const;
         int _parseStatusCode(const std::string &value) const;
     public:
         CgiHandler();

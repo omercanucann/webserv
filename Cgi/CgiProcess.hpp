@@ -19,6 +19,10 @@ class CgiProcess
         CgiProcess();
         
         bool start(const std::string &interpreter, const std::string &scriptPath, char **envp);
+        bool startWithInputFile(const std::string &interpreter,
+                                const std::string &scriptPath,
+                                char **envp,
+                                const std::string &inputPath);
 
         pid_t getPid() const;
         int getStdinFd() const;

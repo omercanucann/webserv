@@ -35,7 +35,7 @@ char **CgiEnv::build(const HttpRequest &request, const RouteResult &route, const
     if (request.hasHeader("Content-Type"))
         _add("CONTENT_TYPE", request.getHeader("Content-Type"));
     if (request.getMethod() == "POST")
-        _add("CONTENT_LENGTH", _toString(request.getBody().size()));
+        _add("CONTENT_LENGTH", _toString(request.getBodySize()));
     if (request.hasHeader("X-Secret-Header-For-Test"))
         _add("HTTP_X_SECRET_HEADER_FOR_TEST", request.getHeader("X-Secret-Header-For-Test"));
     

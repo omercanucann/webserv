@@ -8,6 +8,7 @@
 #include <iostream>
 #include <cstring>
 #include <string>
+#include <memory>
 
 int main(int argc, char* argv[])
 {
@@ -34,16 +35,16 @@ int main(int argc, char* argv[])
     SignalGuard::install();
     SignalHandler::install();
 
-    PollReactor reactor;
-    HttpRequestHandler handler(config, reactor);
-    ReactorBridge bridge(reactor, handler);
+    std::auto_ptr<PollReactor> reactor(new PollReactor());
+    std::auto_ptr<HttpRequestHandler> handler(new HttpRequestHandler(config, *reactor));
+    std::auto_ptr<ReactorBridge> bridge(new ReactorBridge(*reactor, *handler));
 
-    bridge.activate();
+    bridge->activate();
 
     size_t i = 0;
     while (i < config.servers.size())
     {
-        if (!(reactor.add_server(config.servers[i].listenHost,config.servers[i].listenPort)))
+        if (!(reactor->add_server(config.servers[i].listenHost,config.servers[i].listenPort)))
         {
             std::cerr << "[main] Port " << config.servers[i].listenPort
                 << " acilamadi" << std::endl;
@@ -55,7 +56,7 @@ int main(int argc, char* argv[])
 
     std::cerr << "[main] Sunucu hazir. Port(lar) dinleniyor..." << std::endl;
     std::cerr << "[main] Durdurmak icin Ctrl+C" << std::endl;
-    reactor.run();
+    reactor->run();
 
     std::cerr << "[main] Temiz cikis" << std::endl;
     return 0;

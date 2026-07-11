@@ -17,6 +17,9 @@ struct CgiSession
     size_t inputSent;
 
     std::string output;
+    int outputFileFd;
+    std::string outputFilePath;
+    size_t outputSize;
 
     bool stdinClosed;
     bool stdoutClosed;
@@ -30,6 +33,8 @@ struct CgiSession
           stdinFd(-1),
           stdoutFd(-1),
           inputSent(0),
+          outputFileFd(-1),
+          outputSize(0),
           stdinClosed(false),
           stdoutClosed(false),
           done(false),

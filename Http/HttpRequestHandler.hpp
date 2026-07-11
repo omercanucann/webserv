@@ -10,6 +10,7 @@
 #include "../Router/Router.hpp"
 #include "StaticHandler.hpp"
 #include "CgiHandler.hpp"
+#include <map>
 
 class HttpRequestHandler : public IRequestHandler
 {
@@ -25,6 +26,8 @@ class HttpRequestHandler : public IRequestHandler
 		Router     _router;
 		StaticHandler _staticHandler;
         CgiHandler _cgiHandler;
+        struct BodyStreamState;
+        std::map<int, BodyStreamState *> _bodyStreams;
 
         bool        _isRequestComplete(const std::string &rawRequest) const;
         bool        _isRequestComplete(const std::vector<char> &rawRequest) const;
@@ -41,6 +44,17 @@ class HttpRequestHandler : public IRequestHandler
         bool        _handleExpectContinueCgi(int slot_index, const std::vector<char> &rawRequest);
         void        _reserveRequestBuffer(ConnectionSlot &slot) const;
         void        _sendContinueIfNeeded(ConnectionSlot &slot) const;
+        bool        _handleCgiBodyStream(int slot_index, ConnectionSlot &slot, bool &handled);
+        bool        _startCgiBodyStream(int slot_index, ConnectionSlot &slot, bool &handled);
+        bool        _processCgiBodyStream(int slot_index, ConnectionSlot &slot);
+        bool        _finishCgiBodyStream(int slot_index, ConnectionSlot &slot);
+        bool        _failCgiBodyStream(int slot_index, ConnectionSlot &slot, int statusCode);
+        void        _cleanupBodyStream(int slot_index);
+        bool        _createTempFile(int &fd, std::string &path) const;
+        bool        _writeAll(int fd, const char *data, size_t size) const;
+        bool        _parseSizeValue(const std::string &value, size_t &out) const;
+        bool        _parseChunkSizeLine(const std::string &line, size_t &out) const;
+        bool        _bodyLimitForRoute(const RouteResult &route, size_t &limit) const;
         static size_t _getParserLimit(const Config &config);
 
 		bool _buildResponse(int slot_index, const HttpRequest &request, HttpResponse &response);

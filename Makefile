@@ -87,10 +87,18 @@ fclean: clean
 re: fclean all
 
 # Yeniden linklemeyi önle: header değişince sadece bağımlı .o yeniden derlenir
+$(OBJDIR)/main.o:          Network_Server/Pollreactor.hpp Network_Server/Reactorbridge.hpp Http/HttpRequestHandler.hpp
 $(OBJDIR)/Socketbinder.o:  Network_Server/Socketbinder.hpp Network_Server/Nettypes.hpp
 $(OBJDIR)/Pollreactor.o:   Network_Server/Pollreactor.hpp Network_Server/Connectionslot.hpp
-$(OBJDIR)/Reactorbridge.o: Network_Server/Reactorbridge.hpp Network_Server/Pollreactor.hpp
+$(OBJDIR)/Reactorbridge.o: Network_Server/Reactorbridge.hpp Network_Server/Pollreactor.hpp Network_Server/Connectionslot.hpp
 $(OBJDIR)/Signalguard.o:   Network_Server/Signalguard.hpp
 $(OBJDIR)/ft_memset.o:     utils/Utils.hpp
+$(OBJDIR)/HttpParser.o:    Http/HttpParser.hpp Http/HttpRequest.hpp
+$(OBJDIR)/HttpRequest.o:   Http/HttpRequest.hpp
+$(OBJDIR)/HttpRequestHandler.o: Http/HttpRequestHandler.hpp Http/HttpRequest.hpp Http/HttpParser.hpp Http/CgiHandler.hpp Network_Server/Connectionslot.hpp
+$(OBJDIR)/StaticHandler.o: Http/StaticHandler.hpp Http/HttpRequest.hpp
+$(OBJDIR)/CgiHandler.o:    Http/CgiHandler.hpp Cgi/CgiSession.hpp Cgi/CgiProcess.hpp Http/HttpRequest.hpp
+$(OBJDIR)/CgiProcess.o:    Cgi/CgiProcess.hpp
+$(OBJDIR)/CgiEnv.o:        Cgi/CgiEnv.hpp Http/HttpRequest.hpp
 
 .PHONY: all clean fclean re

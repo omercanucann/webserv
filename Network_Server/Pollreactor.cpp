@@ -1,4 +1,5 @@
 #include "Pollreactor.hpp"
+#include <fcntl.h>
 
 PollReactor::PollReactor(): _slot_count(0), _server_count(0), _on_data(NULL), _on_write(NULL), _on_close(NULL), _cb_ctx(NULL), _running(false), _sweep_counter(0)
 {
@@ -290,6 +291,7 @@ void PollReactor::_read_slot(int slot_index)
     char buf[READ_CHUNK];
     ConnectionSlot &slot = _slots[slot_index];
 
+    slot.self_index = slot_index;
     ssize_t n = read(slot.fd, buf, sizeof(buf));
 
     if (n > 0)
@@ -308,6 +310,9 @@ void PollReactor::_read_slot(int slot_index)
         return;
     }
 
+    if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
+        return;
+
     std::cout << "[PollReactor] read() failed: slot[" << slot_index << "]" << std::endl;
     _close_slot(slot_index);
 }
@@ -316,24 +321,35 @@ void PollReactor::_write_slot(int slot_index)
 {
     ConnectionSlot &slot = _slots[slot_index];
 
-    if (slot.writebuffer.empty() || slot.write_done())
+    if (slot.write_done())
     {
         _sync_poll_events(slot_index);
         return;
     }
 
-    const char *data = slot.writebuffer.data() + slot.write_position;
-    size_t remain = slot.pending_write();
-    ssize_t n = write(slot.fd, data, remain);
+    if (slot.write_position < slot.writebuffer.size())
+    {
+        const char *data = slot.writebuffer.data() + slot.write_position;
+        size_t remain = slot.pending_write();
+        ssize_t n = write(slot.fd, data, remain);
 
-    if (n > 0)
-    {
-        slot.write_position += static_cast<size_t>(n);
-        slot.touch();
+        if (n > 0)
+        {
+            slot.write_position += static_cast<size_t>(n);
+            slot.touch();
+        }
+        else if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
+            return;
+        else
+        {
+            std::cout << "[PollReactor] write() failed: slot[" << slot_index << "]" << std::endl;
+            _close_slot(slot_index);
+            return;
+        }
     }
-    else
+    else if (!_write_response_file(slot))
     {
-        std::cout << "[PollReactor] write() failed: slot[" << slot_index << "]" << std::endl;
+        std::cout << "[PollReactor] file write failed: slot[" << slot_index << "]" << std::endl;
         _close_slot(slot_index);
         return;
     }
@@ -341,6 +357,7 @@ void PollReactor::_write_slot(int slot_index)
     if (slot.write_done())
     {
         std::cout << "[PollReactor] The answer is complete: slot[" << slot_index << "]" << std::endl;
+        slot.clear_response_file();
 
         if (_on_write)
             _on_write(_cb_ctx, slot);
@@ -359,6 +376,72 @@ void PollReactor::_write_slot(int slot_index)
     else
         _pollfds[slot_index].events = POLLOUT;
 }
+
+bool PollReactor::_write_response_file(ConnectionSlot &slot)
+{
+    ResponseFileState *file;
+    ssize_t n;
+    size_t chunkSize;
+
+    file = slot.response_file;
+    if (file == NULL || file->fd < 0)
+        return true;
+
+    if (file->buffer_position >= file->buffer.size())
+    {
+        file->buffer.clear();
+        file->buffer_position = 0;
+
+        if (file->remaining == 0)
+            return true;
+
+        chunkSize = file->remaining;
+        if (chunkSize > static_cast<size_t>(READ_CHUNK))
+            chunkSize = static_cast<size_t>(READ_CHUNK);
+
+        file->buffer.resize(chunkSize);
+        n = read(file->fd, &file->buffer[0], chunkSize);
+        if (n > 0)
+        {
+            file->buffer.resize(static_cast<size_t>(n));
+            file->remaining -= static_cast<size_t>(n);
+        }
+        else if (n < 0 && errno == EINTR)
+        {
+            file->buffer.clear();
+            return true;
+        }
+        else
+        {
+            file->buffer.clear();
+            return false;
+        }
+    }
+
+    if (file->buffer_position < file->buffer.size())
+    {
+        const char *data = &file->buffer[0] + file->buffer_position;
+        size_t remain = file->buffer.size() - file->buffer_position;
+
+        n = write(slot.fd, data, remain);
+        if (n > 0)
+        {
+            file->buffer_position += static_cast<size_t>(n);
+            slot.touch();
+            if (file->buffer_position >= file->buffer.size())
+            {
+                file->buffer.clear();
+                file->buffer_position = 0;
+            }
+            return true;
+        }
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
+            return true;
+        return false;
+    }
+
+    return true;
+}
  
 void PollReactor::_close_slot(int slot_index)
 {
@@ -367,6 +450,9 @@ void PollReactor::_close_slot(int slot_index)
     if (slot.is_empty())
         return;
  
+    if (!slot.is_server)
+        slot.self_index = slot_index;
+
     std::cout << "[PollReactor] Closing slot: [" << slot_index << "] fd=" << slot.fd << " " << slot.remote_ip.c_str() << ":" << (unsigned)slot.remote_port << std::endl;
  
     if (_on_close && !slot.is_server)
@@ -393,7 +479,7 @@ void PollReactor::queue_response(int slot_index, const std::string &data)
         return;
  
     ConnectionSlot &slot = _slots[slot_index];
-    if (slot.is_empty() || slot.fd < 0)
+    if (slot.is_empty() || slot.fd < 0 || slot.is_server)
         return;
  
     slot.queue_response(data);
@@ -406,11 +492,43 @@ void PollReactor::queue_response(int slot_index, const std::vector<char>& data)
         return;
  
     ConnectionSlot &slot = _slots[slot_index];
-    if (slot.is_empty() || slot.fd < 0)
+    if (slot.is_empty() || slot.fd < 0 || slot.is_server)
         return;
  
     slot.queue_response(data);
     _pollfds[slot_index].events = POLLOUT;
+}
+
+bool PollReactor::queue_response_file(int slot_index, const std::string &headers,
+                                      const std::string &filePath, size_t offset,
+                                      size_t length, bool unlinkAfterSend)
+{
+    int fileFd;
+
+    if (slot_index < 0 || slot_index >= MAX_SLOTS)
+        return false;
+
+    ConnectionSlot &slot = _slots[slot_index];
+    if (slot.is_empty() || slot.fd < 0 || slot.is_server)
+        return false;
+
+    fileFd = open(filePath.c_str(), O_RDONLY);
+    if (fileFd < 0)
+        return false;
+
+    if (lseek(fileFd, static_cast<off_t>(offset), SEEK_SET) == static_cast<off_t>(-1))
+    {
+        close(fileFd);
+        return false;
+    }
+
+    slot.clear_response_file();
+    slot.writebuffer.assign(headers.begin(), headers.end());
+    slot.write_position = 0;
+    slot.state = ConnectState_WRITING;
+    slot.attach_response_file(fileFd, filePath, length, unlinkAfterSend);
+    _pollfds[slot_index].events = POLLOUT;
+    return true;
 }
  
 int PollReactor::_find_empty_slot() const

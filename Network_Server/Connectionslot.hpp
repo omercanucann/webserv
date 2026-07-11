@@ -5,6 +5,37 @@
 #include <string>
 #include <ctime>
 #include <cstring>
+#include <cstdio>
+#include <unistd.h>
+
+struct ResponseFileState
+{
+    int               fd;
+    std::string       path;
+    size_t            remaining;
+    bool              unlink_after_send;
+    std::vector<char> buffer;
+    size_t            buffer_position;
+
+    ResponseFileState()
+        : fd(-1),
+          remaining(0),
+          unlink_after_send(false),
+          buffer_position(0)
+    {}
+
+    ~ResponseFileState()
+    {
+        if (fd >= 0)
+            close(fd);
+        if (unlink_after_send && !path.empty())
+            std::remove(path.c_str());
+    }
+
+private:
+    ResponseFileState(const ResponseFileState &);
+    ResponseFileState &operator=(const ResponseFileState &);
+};
 
 class ConnectionSlot
 {
@@ -22,6 +53,7 @@ public:
 
     std::vector<char> writebuffer;
     size_t            write_position;
+    ResponseFileState *response_file;
  
     time_t  last_active;
  
@@ -37,6 +69,7 @@ public:
 	        , request_complete(false)
 	        , continue_sent(false)
 	        , write_position(0)
+        , response_file(NULL)
         , last_active(0)
         , self_index(-1)
         , origin_server_fd(-1)
@@ -44,6 +77,7 @@ public:
  
     void clear()
     {
+        clear_response_file();
         state            = ConnectState_EMPTY;
         fd               = -1;
         is_server        = false;
@@ -63,7 +97,18 @@ public:
     bool is_reading()   const { return state == ConnectState_READING; }
     bool is_writing()   const { return state == ConnectState_WRITING; }
     bool is_closing()   const { return state == ConnectState_CLOSING; }
-    bool write_done()   const { return write_position >= writebuffer.size(); }
+    bool response_file_pending() const
+    {
+        return response_file != NULL
+            && response_file->fd >= 0
+            && (response_file->remaining > 0
+                || response_file->buffer_position < response_file->buffer.size());
+    }
+
+    bool write_done()   const
+    {
+        return write_position >= writebuffer.size() && !response_file_pending();
+    }
  
     size_t pending_write() const
     {
@@ -79,6 +124,7 @@ public:
  
     void queue_response(const std::vector<char> &data)
     {
+        clear_response_file();
         writebuffer	= data;
         write_position = 0;
         state	= ConnectState_WRITING;
@@ -86,9 +132,32 @@ public:
  
     void queue_response(const std::string &data)
     {
+        clear_response_file();
         writebuffer.assign(data.begin(), data.end());
         write_position = 0;
         state     = ConnectState_WRITING;
+    }
+
+    void attach_response_file(int fileFd,
+                              const std::string &filePath,
+                              size_t bodyLength,
+                              bool unlinkAfterSend)
+    {
+        clear_response_file();
+        response_file = new ResponseFileState();
+        response_file->fd = fileFd;
+        response_file->path = filePath;
+        response_file->remaining = bodyLength;
+        response_file->unlink_after_send = unlinkAfterSend;
+    }
+
+    void clear_response_file()
+    {
+        if (response_file != NULL)
+        {
+            delete response_file;
+            response_file = NULL;
+        }
     }
  
     void touch() { last_active = time(NULL); }

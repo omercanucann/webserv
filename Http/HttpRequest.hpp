@@ -13,6 +13,9 @@ class HttpRequest
 		std::string	_version;
 		std::map<std::string, std::string> _headers;
 		std::string _body;
+		std::string _bodyFilePath;
+		size_t      _bodySize;
+		bool        _bodyStoredInFile;
 
 		std::string toLower(const std::string& str) const;
 	public:
@@ -25,12 +28,16 @@ class HttpRequest
 		void		setVersion(const std::string& version);
 		void		setHeader(const std::string& key, const std::string& value);
 		void		setBody(const std::string& body);
+		void		setBodyFile(const std::string& path, size_t bodySize);
 
 		const		std::string& getMethod() const;
 		const		std::string& getPath() const;
 		const		std::string& getQuery() const;
 		const		std::string& getVersion() const;
 		const		std::string& getBody() const;
+		const		std::string& getBodyFilePath() const;
+		size_t		getBodySize() const;
+		bool		hasBodyFile() const;
 
 		std::string	getHeader(const std::string &key) const;
 		bool		hasHeader(const std::string &key) const;

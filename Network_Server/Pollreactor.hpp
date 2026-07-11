@@ -42,6 +42,9 @@ class PollReactor
         void request_shutdown();
         void queue_response(int slot_index, const std::string &data);
         void queue_response(int slot_index, const std::vector<char> &data);
+        bool queue_response_file(int slot_index, const std::string &headers,
+                                 const std::string &filePath, size_t offset,
+                                 size_t length, bool unlinkAfterSend);
         void close_slot(int slot_index);
         int  active_connections() const;
         bool is_server_fd(int fd) const;
@@ -54,6 +57,7 @@ class PollReactor
         void _accept_client(int server_slot_index);
         void _read_slot(int slot_index);
         void _write_slot(int slot_index);
+        bool _write_response_file(ConnectionSlot &slot);
         void _close_slot(int slot_index);
         int  _find_empty_slot() const;
         void _sweep_timeouts();

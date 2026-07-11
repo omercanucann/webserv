@@ -49,6 +49,7 @@ class HttpParser
         ~HttpParser();
 
         HttpRequest parse(const std::string& rawRequest) const;
+        HttpRequest parseHeaders(const std::string& rawRequest) const;
 };
 
 #endif
