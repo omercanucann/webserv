@@ -79,8 +79,17 @@ bool CgiProcess::start(const std::string &interpreter, const std::string &script
     _stdinFd = inPipeWC[1];
     _stdoutFd = outPipeCW[0];
 
-    _setNonBlocking(_stdinFd);
-    _setNonBlocking(_stdoutFd);
+    if (!_setNonBlocking(_stdinFd) || !_setNonBlocking(_stdoutFd))
+    {
+        close(_stdinFd);
+        close(_stdoutFd);
+        kill(_pid, SIGKILL);
+        waitpid(_pid, NULL, 0);
+        _stdinFd = -1;
+        _stdoutFd = -1;
+        _pid = -1;
+        return false;
+    }
 
     return true;
 }
@@ -137,7 +146,15 @@ bool CgiProcess::startWithInputFile(const std::string &interpreter,
     _stdinFd = -1;
     _stdoutFd = outPipeCW[0];
 
-    _setNonBlocking(_stdoutFd);
+    if (!_setNonBlocking(_stdoutFd))
+    {
+        close(_stdoutFd);
+        kill(_pid, SIGKILL);
+        waitpid(_pid, NULL, 0);
+        _stdoutFd = -1;
+        _pid = -1;
+        return false;
+    }
 
     return true;
 }

@@ -1,7 +1,7 @@
 #include "Pollreactor.hpp"
 #include <fcntl.h>
 
-PollReactor::PollReactor(): _slot_count(0), _server_count(0), _on_data(NULL), _on_write(NULL), _on_close(NULL), _cb_ctx(NULL), _running(false), _sweep_counter(0)
+PollReactor::PollReactor(): _slot_count(0), _server_count(0), _on_data(NULL), _on_write(NULL), _on_close(NULL), _on_timeout(NULL), _cb_ctx(NULL), _running(false), _sweep_counter(0)
 {
     ft_memset(_pollfds, 0, sizeof(_pollfds));
     for (int i = 0; i < MAX_SLOTS; ++i)
@@ -64,11 +64,14 @@ bool PollReactor::add_server(const std::string &host, uint16_t port)
     return (true);
 }
 
-void PollReactor::set_callbacks(DataCallback on_data, DataCallback on_write, DataCallback on_close, void *context) 
+void PollReactor::set_callbacks(DataCallback on_data, DataCallback on_write,
+                                DataCallback on_close, void *context,
+                                TimeoutCallback on_timeout)
 {
     _on_data  = on_data;
     _on_write = on_write;
     _on_close = on_close;
+    _on_timeout = on_timeout;
     _cb_ctx   = context;
 }
 
@@ -310,9 +313,6 @@ void PollReactor::_read_slot(int slot_index)
         return;
     }
 
-    if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
-        return;
-
     std::cout << "[PollReactor] read() failed: slot[" << slot_index << "]" << std::endl;
     _close_slot(slot_index);
 }
@@ -320,6 +320,32 @@ void PollReactor::_read_slot(int slot_index)
 void PollReactor::_write_slot(int slot_index)
 {
     ConnectionSlot &slot = _slots[slot_index];
+
+    if (slot.interim_write_pending())
+    {
+        const char *data = slot.interim_writebuffer.data()
+            + slot.interim_write_position;
+        size_t remain = slot.pending_interim_write();
+        ssize_t n = write(slot.fd, data, remain);
+
+        if (n > 0)
+        {
+            slot.interim_write_position += static_cast<size_t>(n);
+            slot.touch();
+        }
+        else
+        {
+            std::cout << "[PollReactor] interim write() failed: slot["
+                      << slot_index << "]" << std::endl;
+            _close_slot(slot_index);
+            return;
+        }
+
+        if (!slot.interim_write_pending())
+            slot.clear_interim_response();
+        _sync_poll_events(slot_index);
+        return;
+    }
 
     if (slot.write_done())
     {
@@ -338,8 +364,6 @@ void PollReactor::_write_slot(int slot_index)
             slot.write_position += static_cast<size_t>(n);
             slot.touch();
         }
-        else if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
-            return;
         else
         {
             std::cout << "[PollReactor] write() failed: slot[" << slot_index << "]" << std::endl;
@@ -406,11 +430,6 @@ bool PollReactor::_write_response_file(ConnectionSlot &slot)
             file->buffer.resize(static_cast<size_t>(n));
             file->remaining -= static_cast<size_t>(n);
         }
-        else if (n < 0 && errno == EINTR)
-        {
-            file->buffer.clear();
-            return true;
-        }
         else
         {
             file->buffer.clear();
@@ -435,8 +454,6 @@ bool PollReactor::_write_response_file(ConnectionSlot &slot)
             }
             return true;
         }
-        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
-            return true;
         return false;
     }
 
@@ -499,6 +516,19 @@ void PollReactor::queue_response(int slot_index, const std::vector<char>& data)
     _pollfds[slot_index].events = POLLOUT;
 }
 
+void PollReactor::queue_interim_response(int slot_index, const std::string &data)
+{
+    if (slot_index < 0 || slot_index >= MAX_SLOTS)
+        return;
+
+    ConnectionSlot &slot = _slots[slot_index];
+    if (slot.is_empty() || slot.fd < 0 || slot.is_server)
+        return;
+
+    slot.queue_interim_response(data);
+    _pollfds[slot_index].events = POLLOUT;
+}
+
 bool PollReactor::queue_response_file(int slot_index, const std::string &headers,
                                       const std::string &filePath, size_t offset,
                                       size_t length, bool unlinkAfterSend)
@@ -555,7 +585,9 @@ void PollReactor::_sync_poll_events(int slot_index)
         return;
     }
  
-    if (slot.is_writing() && !slot.write_done())
+    if (slot.interim_write_pending())
+        _pollfds[slot_index].events = POLLOUT;
+    else if (slot.is_writing() && !slot.write_done())
         _pollfds[slot_index].events = POLLOUT;
     else
         _pollfds[slot_index].events = POLLIN;
@@ -575,6 +607,12 @@ void PollReactor::_sweep_timeouts()
  
         if (slot.timed_out())
         {
+            if (_on_timeout != NULL && _on_timeout(_cb_ctx, slot))
+            {
+                slot.touch();
+                _sync_poll_events(i);
+                continue;
+            }
             std::cout << "[PollReactor] Timeout: slot[" << i << "] fd=" << slot.fd << " " << slot.remote_ip.c_str() << ":" << (unsigned)slot.remote_port << std::endl;
             _close_slot(i);
             closed++;

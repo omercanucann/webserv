@@ -12,7 +12,8 @@ void ReactorBridge::activate()
         _on_data_static,
         _on_write_static,
         _on_close_static,
-        this
+        this,
+        _on_timeout_static
     );
 }
 
@@ -40,6 +41,11 @@ void ReactorBridge::_on_close_static(void *context, ConnectionSlot &slot)
 {
     static_cast<ReactorBridge*>(context)->_on_close(slot);
 }
+
+bool ReactorBridge::_on_timeout_static(void *context, ConnectionSlot &slot)
+{
+    return static_cast<ReactorBridge*>(context)->_on_timeout(slot);
+}
  
 void ReactorBridge::_on_data(ConnectionSlot &slot)
 {
@@ -66,4 +72,9 @@ void ReactorBridge::_on_close(ConnectionSlot &slot)
         _handler.handle_close(slot.self_index);
  
     std::cout << "[ReactorBridge] Connection closed: slot[" << slot.self_index << "] fd=" << slot.fd << std::endl;
+}
+
+bool ReactorBridge::_on_timeout(ConnectionSlot &slot)
+{
+    return _handler.handle_timeout(slot.self_index, slot);
 }

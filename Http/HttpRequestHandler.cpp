@@ -9,7 +9,6 @@
 #include <ctime>
 #include <cstdio>
 #include <unistd.h>
-#include <cerrno>
 #include <fcntl.h>
 
 struct HttpRequestHandler::BodyStreamState
@@ -85,7 +84,8 @@ size_t HttpRequestHandler::_getParserLimit(const Config &config)
 }
 
 HttpRequestHandler::HttpRequestHandler(const Config &config, PollReactor &reactor)
-	: _parser(_getParserLimit(config)), _router(config), _staticHandler(), _cgiHandler()
+	: _parser(_getParserLimit(config)), _router(config), _staticHandler(),
+	  _cgiHandler(), _reactor(&reactor)
 {
 	_cgiHandler.setReactor(&reactor);
 }
@@ -117,6 +117,14 @@ HttpResponse HttpRequestHandler::_makeErrorResponse(int statusCode,
         if (it != server->errorPages.end())
         {
             filePath = it->second;
+
+            if (!filePath.empty() && filePath[0] == '/' && server->hasRoot)
+            {
+                if (!server->root.empty() && server->root[server->root.length() - 1] == '/')
+                    filePath = server->root + filePath.substr(1);
+                else
+                    filePath = server->root + filePath;
+            }
 
             if (_fileExists(filePath) && !_isDirectory(filePath))
             {
@@ -553,7 +561,7 @@ void HttpRequestHandler::_reserveRequestBuffer(ConnectionSlot &slot) const
 		slot.readbuffer.reserve(expectedTotalSize);
 }
 
-void HttpRequestHandler::_sendContinueIfNeeded(ConnectionSlot &slot) const
+void HttpRequestHandler::_sendContinueIfNeeded(ConnectionSlot &slot)
 {
 	size_t headerEnd;
 	std::string headerOnly;
@@ -577,8 +585,11 @@ void HttpRequestHandler::_sendContinueIfNeeded(ConnectionSlot &slot) const
 	if (expect.find("100-continue") == std::string::npos)
 		return;
 
-	write(slot.fd, response, sizeof(response) - 1);
-	slot.continue_sent = true;
+	if (_reactor != NULL)
+	{
+		_reactor->queue_interim_response(slot.self_index, response);
+		slot.continue_sent = true;
+	}
 }
 
 bool HttpRequestHandler::_createTempFile(int &fd, std::string &path) const
@@ -616,8 +627,6 @@ bool HttpRequestHandler::_writeAll(int fd, const char *data, size_t size) const
 		n = write(fd, data + written, size - written);
 		if (n > 0)
 			written += static_cast<size_t>(n);
-		else if (n < 0 && errno == EINTR)
-			continue;
 		else
 			return false;
 	}
@@ -1076,6 +1085,8 @@ bool HttpRequestHandler::_buildResponse(int slot_index,
 	if (request.getMethod() == "GET" || request.getMethod() == "DELETE" || request.getMethod() == "POST")
 	{
 		response = _staticHandler.handle(request, route);
+		if (response.getStatusCode() >= 400 && response.getStatusCode() <= 599)
+			response = _makeErrorResponse(response.getStatusCode(), route.server);
 		return true;
 	}
 
@@ -1154,5 +1165,11 @@ void HttpRequestHandler::handle_close(int slot_index)
 	_cleanupBodyStream(slot_index);
 	_cgiHandler.closeClientSessions(slot_index);
 	std::cout << "[HttpRequestHandler] connection closed: slot["
-			  << slot_index << "]" << std::endl;
+				<< slot_index << "]" << std::endl;
+}
+
+bool HttpRequestHandler::handle_timeout(int slot_index, ConnectionSlot &slot)
+{
+	(void)slot;
+	return _cgiHandler.timeoutClientSessions(slot_index);
 }

@@ -53,6 +53,8 @@ public:
 
     std::vector<char> writebuffer;
     size_t            write_position;
+    std::vector<char> interim_writebuffer;
+    size_t            interim_write_position;
     ResponseFileState *response_file;
  
     time_t  last_active;
@@ -69,6 +71,7 @@ public:
 	        , request_complete(false)
 	        , continue_sent(false)
 	        , write_position(0)
+	        , interim_write_position(0)
         , response_file(NULL)
         , last_active(0)
         , self_index(-1)
@@ -87,8 +90,10 @@ public:
 	        readbuffer.clear();
 	        request_complete = false;
 	        continue_sent = false;
-	        writebuffer.clear();
+        writebuffer.clear();
         write_position        = 0;
+        interim_writebuffer.clear();
+        interim_write_position = 0;
         last_active      = 0;
         origin_server_fd = -1;
     }
@@ -108,6 +113,11 @@ public:
     bool write_done()   const
     {
         return write_position >= writebuffer.size() && !response_file_pending();
+    }
+
+    bool interim_write_pending() const
+    {
+        return interim_write_position < interim_writebuffer.size();
     }
  
     size_t pending_write() const
@@ -129,6 +139,12 @@ public:
         write_position = 0;
         state	= ConnectState_WRITING;
     }
+
+    size_t pending_interim_write() const
+    {
+        if (interim_write_position >= interim_writebuffer.size()) return 0;
+        return interim_writebuffer.size() - interim_write_position;
+    }
  
     void queue_response(const std::string &data)
     {
@@ -136,6 +152,18 @@ public:
         writebuffer.assign(data.begin(), data.end());
         write_position = 0;
         state     = ConnectState_WRITING;
+    }
+
+    void queue_interim_response(const std::string &data)
+    {
+        interim_writebuffer.assign(data.begin(), data.end());
+        interim_write_position = 0;
+    }
+
+    void clear_interim_response()
+    {
+        interim_writebuffer.clear();
+        interim_write_position = 0;
     }
 
     void attach_response_file(int fileFd,

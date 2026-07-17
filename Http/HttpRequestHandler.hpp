@@ -20,12 +20,14 @@ class HttpRequestHandler : public IRequestHandler
 
         virtual bool handle_data(int slot_index, ConnectionSlot &slot);
         virtual void handle_close(int slot_index);
+        virtual bool handle_timeout(int slot_index, ConnectionSlot &slot);
 
 	private:
 		HttpParser _parser;
 		Router     _router;
 		StaticHandler _staticHandler;
         CgiHandler _cgiHandler;
+        PollReactor *_reactor;
         struct BodyStreamState;
         std::map<int, BodyStreamState *> _bodyStreams;
 
@@ -43,7 +45,7 @@ class HttpRequestHandler : public IRequestHandler
         bool        _makeEarlyResponse(const std::vector<char> &rawRequest, HttpResponse &response) const;
         bool        _handleExpectContinueCgi(int slot_index, const std::vector<char> &rawRequest);
         void        _reserveRequestBuffer(ConnectionSlot &slot) const;
-        void        _sendContinueIfNeeded(ConnectionSlot &slot) const;
+        void        _sendContinueIfNeeded(ConnectionSlot &slot);
         bool        _handleCgiBodyStream(int slot_index, ConnectionSlot &slot, bool &handled);
         bool        _startCgiBodyStream(int slot_index, ConnectionSlot &slot, bool &handled);
         bool        _processCgiBodyStream(int slot_index, ConnectionSlot &slot);

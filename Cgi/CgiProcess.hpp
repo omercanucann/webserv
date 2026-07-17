@@ -3,6 +3,8 @@
 
 #include <string>
 #include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>

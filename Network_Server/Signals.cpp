@@ -42,7 +42,7 @@ void SignalHandler::install()
     std::memset(&sa, 0, sizeof(sa));
     sa.sa_handler = _child_handler;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
+    sa.sa_flags = SA_RESTART;
     if (sigaction(SIGCHLD, &sa, &oldsa) < 0)
         std::cerr << "[SignalHandler] SIGCHLD Installation failed.z" << std::endl;
 

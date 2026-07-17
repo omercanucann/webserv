@@ -4,10 +4,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <cerrno>
 #include <ctime>
 #include <sstream>
 #include <cstdio>
+#include <signal.h>
 
 CgiHandler::CgiHandler() : _reactor(NULL)
 {
@@ -108,8 +108,6 @@ bool CgiHandler::_writeAll(int fd, const char *data, size_t size) const
         n = write(fd, data + written, size - written);
         if (n > 0)
             written += static_cast<size_t>(n);
-        else if (n < 0 && errno == EINTR)
-            continue;
         else
             return false;
     }
@@ -174,18 +172,6 @@ bool CgiHandler::_writeToCgi(CgiSession &session)
 
         if (n > 0)
             session.inputSent += static_cast<size_t>(n);
-        else if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
-            return true;
-        else if (n < 0 && (errno == EPIPE || errno == EBADF))
-        {
-            if (_reactor)
-                _reactor->unwatch_fd(session.stdinFd);
-            if (session.stdinFd >= 0)
-                close(session.stdinFd);
-            session.stdinFd = -1;
-            session.stdinClosed = true;
-            return true;
-        }
         else
             return false;
     }
@@ -218,9 +204,6 @@ bool CgiHandler::_readFromCgi(CgiSession &session)
         session.outputSize += static_cast<size_t>(n);
         return true;
     }
-
-    if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
-        return true;
 
     if (n == 0)
     {
@@ -282,7 +265,18 @@ void CgiHandler::_finishSession(CgiSession &session)
         session.stdoutClosed = true;
     }
 
-    waitpid(session.pid, &status, WNOHANG);
+    if (session.pid <= 0
+        || waitpid(session.pid, &status, 0) != session.pid
+        || !WIFEXITED(status)
+        || WEXITSTATUS(status) != 0)
+    {
+        _removeOutputFile(session);
+        response = HttpResponse::makeErrorResponse(500);
+        if (_reactor)
+            _reactor->queue_response(session.clientSlot, response.toString());
+        session.done = true;
+        return;
+    }
 
     _closeOutputFile(session);
     if (!_parseOutputFile(session, response, bodyOffset, bodyLength))
@@ -351,7 +345,10 @@ void CgiHandler::_failSession(CgiSession &session, int statusCode)
     }
 
     if (session.pid > 0)
-        waitpid(session.pid, NULL, WNOHANG);
+    {
+        kill(session.pid, SIGKILL);
+        waitpid(session.pid, NULL, 0);
+    }
 
     _removeOutputFile(session);
 
@@ -555,13 +552,36 @@ void CgiHandler::closeClientSessions(int clientSlot)
                 _sessions[i].stdoutClosed = true;
             }
             if (_sessions[i].pid > 0)
-                waitpid(_sessions[i].pid, NULL, WNOHANG);
+            {
+                kill(_sessions[i].pid, SIGKILL);
+                waitpid(_sessions[i].pid, NULL, 0);
+            }
             _removeOutputFile(_sessions[i]);
             _sessions[i].done = true;
         }
         i++;
     }
     _cleanupDoneSessions();
+}
+
+bool CgiHandler::timeoutClientSessions(int clientSlot)
+{
+    size_t i;
+    bool found;
+
+    found = false;
+    i = 0;
+    while (i < _sessions.size())
+    {
+        if (_sessions[i].clientSlot == clientSlot && !_sessions[i].done)
+        {
+            _failSession(_sessions[i], 504);
+            found = true;
+        }
+        i++;
+    }
+    _cleanupDoneSessions();
+    return found;
 }
 
 
@@ -732,8 +752,6 @@ bool CgiHandler::_parseOutputFile(const CgiSession &session, HttpResponse &respo
         n = read(fd, buffer, want);
         if (n > 0)
             prefix.append(buffer, static_cast<size_t>(n));
-        else if (n < 0 && errno == EINTR)
-            continue;
         else
             break;
     }

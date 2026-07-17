@@ -21,6 +21,7 @@
 
 typedef void (*DataCallback)(void *ctx, ConnectionSlot &slot);
 typedef void (*FdCallback)(void *ctx, int fd, short revents);
+typedef bool (*TimeoutCallback)(void *ctx, ConnectionSlot &slot);
 
 class PollReactor
 {
@@ -35,13 +36,15 @@ class PollReactor
             DataCallback on_data,
             DataCallback on_write,
             DataCallback on_close,
-            void*        context 
+            void*        context,
+            TimeoutCallback on_timeout = NULL
         );
 
         void run();
         void request_shutdown();
         void queue_response(int slot_index, const std::string &data);
         void queue_response(int slot_index, const std::vector<char> &data);
+        void queue_interim_response(int slot_index, const std::string &data);
         bool queue_response_file(int slot_index, const std::string &headers,
                                  const std::string &filePath, size_t offset,
                                  size_t length, bool unlinkAfterSend);
@@ -71,6 +74,7 @@ class PollReactor
         DataCallback   _on_data;
         DataCallback   _on_write;
         DataCallback   _on_close;
+        TimeoutCallback _on_timeout;
         void*          _cb_ctx;
         bool           _running;
         int            _sweep_counter;

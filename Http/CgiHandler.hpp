@@ -49,6 +49,7 @@ class CgiHandler
         bool start(int clientSlot, const HttpRequest &request, const RouteResult &route);
         void onFdEvent(int fd, short revents);
         void closeClientSessions(int clientSlot);
+        bool timeoutClientSessions(int clientSlot);
 };
 
 #endif
