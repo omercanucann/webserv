@@ -1,4 +1,5 @@
 #include "FileUtils.hpp"
+#include <cstdlib>
 #include <cstdio>
 #include <fcntl.h>
 #include <fstream>
@@ -18,7 +19,7 @@ bool FileUtils::createTempFile(const std::string &prefix,
     buffer.assign(pattern.begin(), pattern.end());
     buffer.push_back('\0');
 
-    fd = mkstemp(&buffer[0]);
+    fd = ::mkstemp(&buffer[0]);
     if (fd < 0)
         return false;
     if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
