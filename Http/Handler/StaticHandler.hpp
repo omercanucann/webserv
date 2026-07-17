@@ -5,12 +5,7 @@
 #include "HttpResponse.hpp"
 #include "HttpRequest.hpp"
 #include "MimeTypes.hpp"
-#include "../Router/Router.hpp"
-#include <sys/stat.h>
-#include <fstream>
-#include <sstream>
-#include <cstdio>
-#include <ctime>
+#include "../../Router/Router.hpp"
 
 
 class StaticHandler
@@ -24,10 +19,6 @@ class StaticHandler
 		HttpResponse _handleGet(const HttpRequest &request, const RouteResult &route);
 		HttpResponse _handleDelete(const HttpRequest &request, const RouteResult &route);
 	
-		bool _isMethodAllowed(const std::string &method, const RouteResult &route) const;
-		std::string _allowedMethodsToString(const RouteResult &route) const;
-
-
 		std::string _getRoot(const RouteResult &route) const;
         std::string _getIndex(const RouteResult &route) const;
         std::string _joinPath(const std::string &root, const std::string &path) const;
@@ -50,7 +41,6 @@ class StaticHandler
 		std::string _generateUploadFileName() const;
 
 		public:
-		StaticHandler();
 		HttpResponse handle(const HttpRequest &request, const RouteResult &route);
 };
 

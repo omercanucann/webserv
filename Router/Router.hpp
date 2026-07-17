@@ -2,7 +2,7 @@
 # define ROUTER_HPP
 
 #include "../Config/Config.hpp"
-#include "../Http/HttpRequest.hpp"
+#include "../Http/Message/HttpRequest.hpp"
 #include <string>
 #include <cstdlib>
 

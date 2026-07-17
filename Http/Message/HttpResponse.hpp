@@ -18,7 +18,6 @@ private:
 
 public:
     HttpResponse();
-    ~HttpResponse();
 
     void setVersion(const std::string& version);
     void setStatus(int statusCode);

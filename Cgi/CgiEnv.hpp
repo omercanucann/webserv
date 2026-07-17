@@ -1,7 +1,7 @@
 #ifndef CGIENV_HPP
 # define CGIENV_HPP
 
-#include "../Http/HttpRequest.hpp"
+#include "../Http/Message/HttpRequest.hpp"
 #include "../Router/Router.hpp"
 #include <string>
 #include <vector>

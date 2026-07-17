@@ -1,5 +1,9 @@
 #include "CgiHandler.hpp"
 #include "StatusCode.hpp"
+#include "../../Cgi/CgiEnv.hpp"
+#include "../../Cgi/CgiProcess.hpp"
+#include "../../Network_Server/Pollreactor.hpp"
+#include "../../utils/FileUtils.hpp"
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -70,48 +74,6 @@ bool CgiHandler::_isDirectory(const std::string &path) const
         return false;
 
     return S_ISDIR(st.st_mode);
-}
-
-bool CgiHandler::_createTempFile(const std::string &prefix, int &fd, std::string &path) const
-{
-    std::string pattern;
-    std::vector<char> buffer;
-
-    pattern = "/tmp/webserv_" + prefix + "_XXXXXX";
-    buffer.assign(pattern.begin(), pattern.end());
-    buffer.push_back('\0');
-
-    fd = mkstemp(&buffer[0]);
-    if (fd < 0)
-        return false;
-    if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
-    {
-        close(fd);
-        fd = -1;
-        std::remove(&buffer[0]);
-        return false;
-    }
-
-    path = &buffer[0];
-    return true;
-}
-
-bool CgiHandler::_writeAll(int fd, const char *data, size_t size) const
-{
-    size_t written;
-
-    written = 0;
-    while (written < size)
-    {
-        ssize_t n;
-
-        n = write(fd, data + written, size - written);
-        if (n > 0)
-            written += static_cast<size_t>(n);
-        else
-            return false;
-    }
-    return true;
 }
 
 void CgiHandler::_closeOutputFile(CgiSession &session)
@@ -199,7 +161,7 @@ bool CgiHandler::_readFromCgi(CgiSession &session)
     {
         if (session.outputFileFd < 0)
             return false;
-        if (!_writeAll(session.outputFileFd, buffer, static_cast<size_t>(n)))
+        if (!FileUtils::writeAll(session.outputFileFd, buffer, static_cast<size_t>(n)))
             return false;
         session.outputSize += static_cast<size_t>(n);
         return true;
@@ -458,7 +420,7 @@ bool CgiHandler::start(int clientSlot, const HttpRequest &request, const RouteRe
     envp = env.build(request, route, scriptPath, "");
 
     outputFd = -1;
-    if (!_createTempFile("cgi_out", outputFd, outputPath))
+    if (!FileUtils::createTempFile("cgi_out", outputFd, outputPath))
     {
         response = HttpResponse::makeErrorResponse(500);
         _reactor->queue_response(clientSlot, response.toString());
@@ -649,66 +611,6 @@ int CgiHandler::_parseStatusCode(const std::string &value) const
         return 200;
 
     return code;
-}
-
-HttpResponse CgiHandler::_parseOutput(const std::string &output) const
-{
-    HttpResponse response;
-    std::string headerPart;
-    std::string body;
-    std::string line;
-    size_t separator;
-    size_t colonPos;
-
-    separator = output.find("\r\n\r\n");
-    if (separator != std::string::npos)
-    {
-        headerPart = output.substr(0, separator);
-        body = output.substr(separator + 4);
-    }
-    else
-    {
-        separator = output.find("\n\n");
-        if (separator != std::string::npos)
-        {
-            headerPart = output.substr(0, separator);
-            body = output.substr(separator + 2);
-        }
-        else
-        {
-            response.setStatus(200);
-            response.setHeader("Content-Type", "text/plain");
-            response.setBody(output);
-            return response;
-        }
-    }
-
-    response.setStatus(200);
-
-    std::istringstream stream(headerPart);
-    while (std::getline(stream, line))
-    {
-        if (!line.empty() && line[line.length() - 1] == '\r')
-            line.erase(line.length() - 1);
-
-        colonPos = line.find(':');
-        if (colonPos == std::string::npos)
-            continue;
-
-        std::string key = line.substr(0, colonPos);
-        std::string value = _trim(line.substr(colonPos + 1));
-
-        if (key == "Status")
-            response.setStatus(_parseStatusCode(value));
-        else
-            response.setHeader(key, value);
-    }
-
-    if (!response.hasHeader("Content-Type"))
-        response.setHeader("Content-Type", "text/plain");
-
-    response.setBody(body);
-    return response;
 }
 
 bool CgiHandler::_parseOutputFile(const CgiSession &session, HttpResponse &response,

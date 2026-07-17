@@ -1,6 +1,5 @@
 #include "HttpParser.hpp"
 #include <sstream>
-#include <cstdlib>
 
 HttpParser::ParseException::ParseException(int statusCode, const std::string& message)
     : _statusCode(statusCode), _message(message)
@@ -28,10 +27,6 @@ HttpParser::HttpParser()
 
 HttpParser::HttpParser(size_t maxBodySize)
     : _maxBodySize(maxBodySize)
-{
-}
-
-HttpParser::~HttpParser()
 {
 }
 

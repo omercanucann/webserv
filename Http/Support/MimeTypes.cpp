@@ -22,10 +22,6 @@ MimeTypes::MimeTypes()
     _types["mp4"] = "video/mp4";
 }
 
-MimeTypes::~MimeTypes()
-{
-}
-
 std::string MimeTypes::toLower(const std::string& str) const
 {
     std::string result;

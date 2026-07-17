@@ -6,10 +6,6 @@ HttpRequest::HttpRequest()
 {
 }
 
-HttpRequest::~HttpRequest()
-{
-}
-
 std::string HttpRequest::toLower(const std::string& str) const
 {
     std::string result;
@@ -120,17 +116,4 @@ std::string HttpRequest::getHeader(const std::string& key) const
 bool HttpRequest::hasHeader(const std::string& key) const
 {
     return _headers.find(toLower(key)) != _headers.end();
-}
-
-void HttpRequest::clear()
-{
-    _method.clear();
-    _path.clear();
-    _query.clear();
-    _version.clear();
-    _headers.clear();
-    _body.clear();
-    _bodyFilePath.clear();
-    _bodySize = 0;
-    _bodyStoredInFile = false;
 }

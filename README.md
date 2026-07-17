@@ -33,7 +33,11 @@ The exact structure may change during development, but the project is organized 
 ```text
 .
 ├── Config/              # Configuration parser and config data structures
-├── Http/                # HTTP parser, request/response classes, static handler, CGI handler
+├── Http/
+│   ├── Message/         # Request, response, and status-code models
+│   ├── Protocol/        # Parsing, framing, and route policy
+│   ├── Handler/         # Request, static-content, and CGI handlers
+│   └── Support/         # MIME types and auto-index generation
 ├── Network_Server/      # Socket binding, poll reactor, connection slots, bridge layer
 ├── Router/              # Route matching between requests and config locations
 ├── configs/             # Example/default configuration files
@@ -415,4 +419,3 @@ Before evaluation, verify that:
 - Multiple ports, if configured, serve different content
 - No forbidden external libraries are used
 - README first line contains the real 42 logins of all teammates
-

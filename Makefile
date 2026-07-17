@@ -7,7 +7,8 @@ NAME    := webserv
 CXX     := c++
 CXXFLAGS := -Wall -Wextra -Werror -std=c++98
 
-INCLUDE := -I Network_Server -I utils -I Http
+INCLUDE := -I Network_Server -I utils \
+           -I Http/Message -I Http/Protocol -I Http/Handler -I Http/Support
 
 SRCDIR  := .
 OBJDIR  := obj
@@ -19,19 +20,25 @@ SRCS    :=  main.cpp                      \
             Network_Server/Signalguard.cpp    \
             Network_Server/Signals.cpp        \
             utils/ft_memset.cpp \
-			Http/HttpParser.cpp \
-			Http/HttpRequest.cpp \
-			Http/HttpRequestHandler.cpp \
-			Http/HttpResponse.cpp \
-			Http/MimeTypes.cpp \
-			Http/StatusCode.cpp \
+			utils/FileUtils.cpp \
+			Http/Protocol/HttpParser.cpp \
+			Http/Protocol/HttpFraming.cpp \
+			Http/Protocol/RoutePolicy.cpp \
+			Http/Message/HttpRequest.cpp \
+			Http/Message/HttpResponse.cpp \
+			Http/Message/StatusCode.cpp \
 			Config/ConfigParser.cpp \
 			Router/Router.cpp \
-			Http/StaticHandler.cpp \
-			Http/AutoIndex.cpp \
+			Http/Handler/HttpRequestHandler.cpp \
+			Http/Handler/HttpRequestHandlerPreflight.cpp \
+			Http/Handler/HttpRequestHandlerResponse.cpp \
+			Http/Handler/HttpRequestHandlerCgi.cpp \
+			Http/Handler/StaticHandler.cpp \
+			Http/Handler/CgiHandler.cpp \
+			Http/Support/AutoIndex.cpp \
+			Http/Support/MimeTypes.cpp \
 			Cgi/CgiEnv.cpp \
 			Cgi/CgiProcess.cpp \
-			Http/CgiHandler.cpp \
 
 OBJS    := $(patsubst %.cpp, $(OBJDIR)/%.o, $(notdir $(SRCS)))
 
@@ -59,7 +66,19 @@ $(OBJDIR)/%.o: utils/%.cpp | $(OBJDIR)
 	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
 	@echo "  CC $<"
 
-$(OBJDIR)/%.o: Http/%.cpp | $(OBJDIR)
+$(OBJDIR)/%.o: Http/Message/%.cpp | $(OBJDIR)
+	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
+	@echo "  CC $<"
+
+$(OBJDIR)/%.o: Http/Protocol/%.cpp | $(OBJDIR)
+	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
+	@echo "  CC $<"
+
+$(OBJDIR)/%.o: Http/Handler/%.cpp | $(OBJDIR)
+	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
+	@echo "  CC $<"
+
+$(OBJDIR)/%.o: Http/Support/%.cpp | $(OBJDIR)
 	@$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
 	@echo "  CC $<"
 
@@ -87,18 +106,24 @@ fclean: clean
 re: fclean all
 
 # Yeniden linklemeyi önle: header değişince sadece bağımlı .o yeniden derlenir
-$(OBJDIR)/main.o:          Network_Server/Pollreactor.hpp Network_Server/Reactorbridge.hpp Http/HttpRequestHandler.hpp
+$(OBJDIR)/main.o:          Network_Server/Pollreactor.hpp Network_Server/Reactorbridge.hpp Http/Handler/HttpRequestHandler.hpp
 $(OBJDIR)/Socketbinder.o:  Network_Server/Socketbinder.hpp Network_Server/Nettypes.hpp
 $(OBJDIR)/Pollreactor.o:   Network_Server/Pollreactor.hpp Network_Server/Connectionslot.hpp
 $(OBJDIR)/Reactorbridge.o: Network_Server/Reactorbridge.hpp Network_Server/Pollreactor.hpp Network_Server/Connectionslot.hpp
 $(OBJDIR)/Signalguard.o:   Network_Server/Signalguard.hpp
 $(OBJDIR)/ft_memset.o:     utils/Utils.hpp
-$(OBJDIR)/HttpParser.o:    Http/HttpParser.hpp Http/HttpRequest.hpp
-$(OBJDIR)/HttpRequest.o:   Http/HttpRequest.hpp
-$(OBJDIR)/HttpRequestHandler.o: Http/HttpRequestHandler.hpp Http/HttpRequest.hpp Http/HttpParser.hpp Http/CgiHandler.hpp Network_Server/Connectionslot.hpp
-$(OBJDIR)/StaticHandler.o: Http/StaticHandler.hpp Http/HttpRequest.hpp
-$(OBJDIR)/CgiHandler.o:    Http/CgiHandler.hpp Cgi/CgiSession.hpp Cgi/CgiProcess.hpp Http/HttpRequest.hpp
+$(OBJDIR)/FileUtils.o:     utils/FileUtils.hpp
+$(OBJDIR)/HttpParser.o:    Http/Protocol/HttpParser.hpp Http/Message/HttpRequest.hpp
+$(OBJDIR)/HttpFraming.o:   Http/Protocol/HttpFraming.hpp
+$(OBJDIR)/HttpRequest.o:   Http/Message/HttpRequest.hpp
+$(OBJDIR)/HttpRequestHandler.o: Http/Handler/HttpRequestHandler.hpp Http/Message/HttpRequest.hpp Http/Protocol/HttpParser.hpp Http/Handler/CgiHandler.hpp Network_Server/Connectionslot.hpp
+$(OBJDIR)/HttpRequestHandlerPreflight.o: Http/Handler/HttpRequestHandler.hpp Http/Protocol/HttpFraming.hpp Http/Protocol/RoutePolicy.hpp
+$(OBJDIR)/HttpRequestHandlerResponse.o: Http/Handler/HttpRequestHandler.hpp
+$(OBJDIR)/HttpRequestHandlerCgi.o: Http/Handler/HttpRequestHandler.hpp Http/Message/HttpRequest.hpp Http/Protocol/HttpParser.hpp Http/Handler/CgiHandler.hpp Network_Server/Connectionslot.hpp
+$(OBJDIR)/RoutePolicy.o: Http/Protocol/RoutePolicy.hpp Router/Router.hpp
+$(OBJDIR)/StaticHandler.o: Http/Handler/StaticHandler.hpp Http/Message/HttpRequest.hpp
+$(OBJDIR)/CgiHandler.o:    Http/Handler/CgiHandler.hpp Cgi/CgiSession.hpp Cgi/CgiProcess.hpp Http/Message/HttpRequest.hpp
 $(OBJDIR)/CgiProcess.o:    Cgi/CgiProcess.hpp
-$(OBJDIR)/CgiEnv.o:        Cgi/CgiEnv.hpp Http/HttpRequest.hpp
+$(OBJDIR)/CgiEnv.o:        Cgi/CgiEnv.hpp Http/Message/HttpRequest.hpp
 
 .PHONY: all clean fclean re

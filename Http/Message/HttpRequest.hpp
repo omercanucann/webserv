@@ -20,7 +20,6 @@ class HttpRequest
 		std::string toLower(const std::string& str) const;
 	public:
 		HttpRequest();
-		~HttpRequest();
 
 		void		setMethod(const std::string& method);
 		void		setPath(const std::string& path);
@@ -41,7 +40,6 @@ class HttpRequest
 
 		std::string	getHeader(const std::string &key) const;
 		bool		hasHeader(const std::string &key) const;
-		void		clear();
 };
 
 #endif

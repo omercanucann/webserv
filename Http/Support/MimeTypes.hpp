@@ -14,7 +14,6 @@ private:
 
 public:
     MimeTypes();
-    ~MimeTypes();
 
     std::string getMimeType(const std::string& path) const;
 };

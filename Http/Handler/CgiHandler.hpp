@@ -3,13 +3,12 @@
 
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
-#include "../Router/Router.hpp"
-#include "../Cgi/CgiEnv.hpp"
-#include "../Cgi/CgiProcess.hpp"
-#include "../Cgi/CgiSession.hpp"
-#include "../Network_Server/Pollreactor.hpp"
+#include "../../Router/Router.hpp"
+#include "../../Cgi/CgiSession.hpp"
 #include <string>
 #include <vector>
+
+class PollReactor;
 
 class CgiHandler
 {
@@ -28,13 +27,10 @@ class CgiHandler
         void _finishSession(CgiSession &session);
         void _failSession(CgiSession &session, int statusCode);
         void _cleanupDoneSessions();
-        bool _createTempFile(const std::string &prefix, int &fd, std::string &path) const;
-        bool _writeAll(int fd, const char *data, size_t size) const;
         void _closeOutputFile(CgiSession &session);
         void _removeOutputFile(CgiSession &session);
         static void _onFdEventStatic(void *ctx, int fd, short revents);
 
-        HttpResponse _parseOutput(const std::string &output) const;
         bool _parseOutputFile(const CgiSession &session, HttpResponse &response,
                               size_t &bodyOffset, size_t &bodyLength) const;
         std::string _trim(const std::string &str) const;

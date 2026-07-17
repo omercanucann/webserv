@@ -1,9 +1,10 @@
 #include "StaticHandler.hpp"
-
-StaticHandler::StaticHandler() : _autoIndex()
-{
-
-}
+#include "RoutePolicy.hpp"
+#include <cstdio>
+#include <ctime>
+#include <fstream>
+#include <sstream>
+#include <sys/stat.h>
 
 bool StaticHandler::_isUploadEnabled(const RouteResult &route) const
 {
@@ -297,10 +298,7 @@ std::string StaticHandler::_resolveGetPath(const HttpRequest &request, const Rou
 
 bool StaticHandler::_containsPathTraversal(const std::string &path) const
 {
-    if (path.find("..") != std::string::npos)
-        return true;
-    
-    return false;
+    return path.find("..") != std::string::npos;
 }
 
 bool StaticHandler::_isDirectory(const std::string &path) const
@@ -421,43 +419,6 @@ std::string StaticHandler::_getIndex(const RouteResult &route) const
     return "index.html";
 }
 
-std::string StaticHandler::_allowedMethodsToString(const RouteResult &route) const
-{
-    std::string allowedStr;
-    size_t i = 0;
-
-    if (route.location == NULL || !route.location->hasAllowedMethods)
-        return "GET";
-
-    while (i < route.location->allowedMethods.size())
-    {
-        if (!allowedStr.empty())
-            allowedStr += ", ";
-        allowedStr += route.location->allowedMethods[i];
-        i++;
-    }
-    if (allowedStr.empty())
-        return "GET";
-
-    return allowedStr;
-}
-
-bool StaticHandler::_isMethodAllowed(const std::string &method, const RouteResult &route) const
-{
-    size_t i = 0;
-
-    if (!route.location->hasAllowedMethods)
-        return method == "GET";
-    
-    while (i < route.location->allowedMethods.size())
-    {
-        if (route.location->allowedMethods[i] == method)
-            return true;
-        i++;
-    }
-    return false;
-}
-
 HttpResponse StaticHandler::handle(const HttpRequest &request, const RouteResult &route)
 {
     if (route.server == NULL || route.location == NULL)
@@ -466,8 +427,9 @@ HttpResponse StaticHandler::handle(const HttpRequest &request, const RouteResult
     if (route.location->hasRedirect)
         return HttpResponse::makeRedirectResponse(route.location->redirectStatus, route.location->redirectTarget);
     
-    if (!_isMethodAllowed(request.getMethod(), route))
-        return HttpResponse::makeMethodNotAllowedResponse(_allowedMethodsToString(route));
+    if (!RoutePolicy::isMethodAllowed(route, request.getMethod()))
+        return HttpResponse::makeMethodNotAllowedResponse(
+            RoutePolicy::allowedMethods(route));
 
     if (request.getMethod() == "GET")
         return _handleGet(request, route);

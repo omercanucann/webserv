@@ -1,9 +1,6 @@
 #include "AutoIndex.hpp"
-
-AutoIndex::AutoIndex()
-{
-
-}
+#include <dirent.h>
+#include <sstream>
 
 std::string AutoIndex::_escapeHtml(const std::string &str) const
 {

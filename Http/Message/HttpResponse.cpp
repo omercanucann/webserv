@@ -7,10 +7,6 @@ HttpResponse::HttpResponse()
 {
 }
 
-HttpResponse::~HttpResponse()
-{
-}
-
 std::string HttpResponse::toLower(const std::string& str) const
 {
     std::string result;
@@ -78,31 +74,30 @@ const std::string& HttpResponse::getBody() const
 
 std::string HttpResponse::getHeader(const std::string& key) const
 {
-    std::map<std::string, std::string>::const_iterator it;
     std::map<std::string, std::string>::const_iterator current;
+    std::string lowerKey;
 
+    lowerKey = toLower(key);
     current = _headers.begin();
     while (current != _headers.end())
     {
-        if (toLower(current->first) == toLower(key))
+        if (toLower(current->first) == lowerKey)
             return current->second;
         current++;
     }
-
-    it = _headers.find(key);
-    if (it == _headers.end())
-        return "";
-    return it->second;
+    return "";
 }
 
 bool HttpResponse::hasHeader(const std::string& key) const
 {
     std::map<std::string, std::string>::const_iterator current;
+    std::string lowerKey;
 
+    lowerKey = toLower(key);
     current = _headers.begin();
     while (current != _headers.end())
     {
-        if (toLower(current->first) == toLower(key))
+        if (toLower(current->first) == lowerKey)
             return true;
         current++;
     }

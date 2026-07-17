@@ -4,7 +4,7 @@
 #include "../Network_Server/Signals.hpp"
 #include "../Network_Server/Pollreactor.hpp"
 #include "../Network_Server/Reactorbridge.hpp"
-#include "../Http/HttpRequestHandler.hpp"
+#include "HttpRequestHandler.hpp"
 #include <iostream>
 #include <cstring>
 #include <string>
@@ -16,8 +16,10 @@ int main(int argc, char* argv[])
 
     if (argc == 2)
         configPath = argv[1];
-    else
+    else if (argc == 1)
         configPath = "configs/default.conf";
+    else
+        exit (1);
 
     ConfigParser parser;
     Config config;
