@@ -1,34 +1,11 @@
 #include "HttpResponse.hpp"
 #include "StatusCode.hpp"
+#include "../../utils/StringUtils.hpp"
 #include <sstream>
 
 HttpResponse::HttpResponse()
     : _version("HTTP/1.1"), _statusCode(200), _reasonPhrase("OK")
 {
-}
-
-std::string HttpResponse::toLower(const std::string& str) const
-{
-    std::string result;
-    size_t i;
-
-    result = str;
-    i = 0;
-    while (i < result.length())
-    {
-        if (result[i] >= 'A' && result[i] <= 'Z')
-            result[i] = result[i] + 32;
-        i++;
-    }
-    return result;
-}
-
-std::string HttpResponse::intToString(size_t number) const
-{
-    std::ostringstream stream;
-
-    stream << number;
-    return stream.str();
 }
 
 void HttpResponse::setVersion(const std::string& version)
@@ -77,11 +54,11 @@ std::string HttpResponse::getHeader(const std::string& key) const
     std::map<std::string, std::string>::const_iterator current;
     std::string lowerKey;
 
-    lowerKey = toLower(key);
+    lowerKey = StringUtils::toLowerAscii(key);
     current = _headers.begin();
     while (current != _headers.end())
     {
-        if (toLower(current->first) == lowerKey)
+        if (StringUtils::toLowerAscii(current->first) == lowerKey)
             return current->second;
         current++;
     }
@@ -93,11 +70,11 @@ bool HttpResponse::hasHeader(const std::string& key) const
     std::map<std::string, std::string>::const_iterator current;
     std::string lowerKey;
 
-    lowerKey = toLower(key);
+    lowerKey = StringUtils::toLowerAscii(key);
     current = _headers.begin();
     while (current != _headers.end())
     {
-        if (toLower(current->first) == lowerKey)
+        if (StringUtils::toLowerAscii(current->first) == lowerKey)
             return true;
         current++;
     }
@@ -112,7 +89,7 @@ std::string HttpResponse::toString()
     if (!StatusCode::isBodyAllowed(_statusCode))
         _body.clear();
     if (!hasHeader("Content-Length"))
-        setHeader("Content-Length", intToString(_body.length()));
+        setHeader("Content-Length", StringUtils::sizeToString(_body.length()));
     if (!hasHeader("Connection"))
         setHeader("Connection", "close");
 

@@ -1,4 +1,5 @@
 #include "Socketbinder.hpp"
+#include <cstring>
  
 int SocketBinder::open_listener(const std::string &host, uint16_t port)
 {
@@ -12,7 +13,7 @@ int SocketBinder::open_listener(const std::string &host, uint16_t port)
     std::ostringstream oss;
  
     result = NULL;
-    ft_memset(&mark, 0, sizeof(mark));
+    std::memset(&mark, 0, sizeof(mark));
     mark.ai_family   = AF_INET;
     mark.ai_socktype = SOCK_STREAM;
     mark.ai_flags    = AI_PASSIVE;

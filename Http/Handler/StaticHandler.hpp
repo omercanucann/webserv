@@ -19,18 +19,10 @@ class StaticHandler
 		HttpResponse _handleGet(const HttpRequest &request, const RouteResult &route);
 		HttpResponse _handleDelete(const HttpRequest &request, const RouteResult &route);
 	
-		std::string _getRoot(const RouteResult &route) const;
         std::string _getIndex(const RouteResult &route) const;
-        std::string _joinPath(const std::string &root, const std::string &path) const;
-        std::string _buildFilePath(const HttpRequest &request, const RouteResult &route) const;
         std::string _resolveGetPath(const HttpRequest &request, const RouteResult &route) const;
 
         bool _containsPathTraversal(const std::string &path) const;
-        bool _isDirectory(const std::string &path) const;
-        bool _fileExists(const std::string &path) const;
-        bool _readFile(const std::string &path, std::string &out) const;
-
-
 		HttpResponse _handlePost(const HttpRequest &request, const RouteResult &route);
 
 		bool _isUploadEnabled(const RouteResult &route) const;

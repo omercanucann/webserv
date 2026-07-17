@@ -41,7 +41,6 @@ class HttpRequestHandler : public IRequestHandler
 
         // Response creation and synchronous/asynchronous dispatch.
         HttpResponse _makeErrorResponse(int statusCode, const ServerConfig *server) const;
-        bool         _readFile(const std::string &path, std::string &out) const;
         bool         _dispatchRequest(int slot_index, const HttpRequest &request, HttpResponse &response);
         void         _storeFinalResponse(ConnectionSlot &slot, HttpResponse &response) const;
 

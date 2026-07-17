@@ -1,7 +1,5 @@
 #include "HttpRequestHandler.hpp"
-#include <fstream>
-#include <sstream>
-#include <sys/stat.h>
+#include "../../utils/FileUtils.hpp"
 
 HttpResponse HttpRequestHandler::_makeErrorResponse(
     int statusCode,
@@ -11,7 +9,6 @@ HttpResponse HttpRequestHandler::_makeErrorResponse(
     std::string filePath;
     std::string body;
     std::map<int, std::string>::const_iterator it;
-    struct stat fileStat;
 
     if (server != NULL)
     {
@@ -20,17 +17,11 @@ HttpResponse HttpRequestHandler::_makeErrorResponse(
         {
             filePath = it->second;
             if (!filePath.empty() && filePath[0] == '/' && server->hasRoot)
-            {
-                if (!server->root.empty()
-                    && server->root[server->root.length() - 1] == '/')
-                    filePath = server->root + filePath.substr(1);
-                else
-                    filePath = server->root + filePath;
-            }
+                filePath = FileUtils::joinPath(server->root, filePath);
 
-            if (stat(filePath.c_str(), &fileStat) == 0
-                && !S_ISDIR(fileStat.st_mode)
-                && _readFile(filePath, body))
+            if (FileUtils::exists(filePath)
+                && !FileUtils::isDirectory(filePath)
+                && FileUtils::readFile(filePath, body))
             {
                 response.setStatus(statusCode);
                 response.setHeader("Content-Type", "text/html");
@@ -40,28 +31,6 @@ HttpResponse HttpRequestHandler::_makeErrorResponse(
         }
     }
     return HttpResponse::makeErrorResponse(statusCode);
-}
-
-bool HttpRequestHandler::_readFile(const std::string &path,
-                                   std::string &out) const
-{
-    std::ifstream file;
-    std::ostringstream content;
-
-    file.open(path.c_str(), std::ios::in | std::ios::binary);
-    if (!file.is_open())
-        return false;
-
-    content << file.rdbuf();
-    if (file.bad())
-    {
-        file.close();
-        return false;
-    }
-
-    file.close();
-    out = content.str();
-    return true;
 }
 
 bool HttpRequestHandler::_dispatchRequest(int slot_index,

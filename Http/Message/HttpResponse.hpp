@@ -13,9 +13,6 @@ private:
     std::map<std::string, std::string> _headers;
     std::string _body;
 
-    std::string intToString(size_t number) const;
-    std::string toLower(const std::string& str) const;
-
 public:
     HttpResponse();
 

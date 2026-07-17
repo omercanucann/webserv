@@ -1,25 +1,10 @@
 #include "HttpRequest.hpp"
+#include "../../utils/StringUtils.hpp"
 
 HttpRequest::HttpRequest()
     : _bodySize(0),
       _bodyStoredInFile(false)
 {
-}
-
-std::string HttpRequest::toLower(const std::string& str) const
-{
-    std::string result;
-    size_t i;
-
-    result = str;
-    i = 0;
-    while (i < result.length())
-    {
-        if (result[i] >= 'A' && result[i] <= 'Z')
-            result[i] = result[i] + 32;
-        i++;
-    }
-    return result;
 }
 
 void HttpRequest::setMethod(const std::string& method)
@@ -44,7 +29,7 @@ void HttpRequest::setVersion(const std::string& version)
 
 void HttpRequest::setHeader(const std::string& key, const std::string& value)
 {
-    _headers[toLower(key)] = value;
+    _headers[StringUtils::toLowerAscii(key)] = value;
 }
 
 void HttpRequest::setBody(const std::string& body)
@@ -107,7 +92,7 @@ std::string HttpRequest::getHeader(const std::string& key) const
 {
     std::map<std::string, std::string>::const_iterator it;
 
-    it = _headers.find(toLower(key));
+    it = _headers.find(StringUtils::toLowerAscii(key));
     if (it == _headers.end())
         return "";
     return it->second;
@@ -115,5 +100,5 @@ std::string HttpRequest::getHeader(const std::string& key) const
 
 bool HttpRequest::hasHeader(const std::string& key) const
 {
-    return _headers.find(toLower(key)) != _headers.end();
+    return _headers.find(StringUtils::toLowerAscii(key)) != _headers.end();
 }

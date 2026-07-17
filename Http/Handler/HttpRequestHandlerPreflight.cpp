@@ -1,6 +1,7 @@
 #include "HttpRequestHandler.hpp"
 #include "HttpFraming.hpp"
 #include "RoutePolicy.hpp"
+#include "../../utils/StringUtils.hpp"
 
 bool HttpRequestHandler::_parseHeaderOnlyRequest(const std::string &rawRequest,
                                                  HttpRequest &request) const
@@ -84,7 +85,7 @@ void HttpRequestHandler::_sendContinueIfNeeded(ConnectionSlot &slot)
     if (request.hasHeader("X-Secret-Header-For-Test"))
         return;
 
-    expect = HttpFraming::toLower(request.getHeader("Expect"));
+    expect = StringUtils::toLowerAscii(request.getHeader("Expect"));
     if (expect.find("100-continue") == std::string::npos)
         return;
 

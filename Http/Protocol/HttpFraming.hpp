@@ -12,7 +12,6 @@ class HttpFraming
     public:
         static bool findHeaderEnd(const std::vector<char> &buffer,
                                   size_t &headerEnd);
-        static std::string toLower(const std::string &value);
         static size_t decimalSize(const std::string &value);
         static bool isRequestComplete(const std::vector<char> &buffer);
         static void reserveForContentLength(std::vector<char> &buffer);

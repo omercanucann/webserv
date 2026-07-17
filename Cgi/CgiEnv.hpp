@@ -5,7 +5,6 @@
 #include "../Router/Router.hpp"
 #include <string>
 #include <vector>
-#include <sstream>
 
 class CgiEnv
 {
@@ -13,7 +12,6 @@ class CgiEnv
         std::vector<std::string> _envStrings;
         std::vector<char *> _envp;
 
-        std::string _toString(size_t value) const;
         void _add(const std::string &key, const std::string &value);
 
     public:

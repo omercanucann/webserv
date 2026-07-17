@@ -1,21 +1,6 @@
 #include "HttpFraming.hpp"
+#include "../../utils/StringUtils.hpp"
 #include <sstream>
-
-std::string HttpFraming::toLower(const std::string &value)
-{
-    std::string result;
-    size_t i;
-
-    result = value;
-    i = 0;
-    while (i < result.length())
-    {
-        if (result[i] >= 'A' && result[i] <= 'Z')
-            result[i] = result[i] + 32;
-        i++;
-    }
-    return result;
-}
 
 size_t HttpFraming::decimalSize(const std::string &value)
 {
@@ -67,7 +52,7 @@ std::string HttpFraming::_getHeaderValue(const std::string &headerPart,
     std::string headerName;
     std::string headerValue;
 
-    lowerKey = toLower(key);
+    lowerKey = StringUtils::toLowerAscii(key);
     while (std::getline(stream, line))
     {
         if (!line.empty() && line[line.length() - 1] == '\r')
@@ -77,7 +62,7 @@ std::string HttpFraming::_getHeaderValue(const std::string &headerPart,
         if (colonPos == std::string::npos)
             continue;
 
-        headerName = toLower(line.substr(0, colonPos));
+        headerName = StringUtils::toLowerAscii(line.substr(0, colonPos));
         headerValue = line.substr(colonPos + 1);
 
         while (!headerValue.empty()
@@ -111,7 +96,8 @@ bool HttpFraming::isRequestComplete(const std::vector<char> &buffer)
     headerPart.assign(buffer.begin(), buffer.begin() + headerEnd);
     bodyStart = headerEnd + 4;
 
-    transferEncoding = toLower(_getHeaderValue(headerPart, "Transfer-Encoding"));
+    transferEncoding = StringUtils::toLowerAscii(
+        _getHeaderValue(headerPart, "Transfer-Encoding"));
     if (transferEncoding.find("chunked") != std::string::npos)
     {
         size_t i;

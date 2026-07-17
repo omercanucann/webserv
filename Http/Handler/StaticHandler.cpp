@@ -1,5 +1,7 @@
 #include "StaticHandler.hpp"
 #include "RoutePolicy.hpp"
+#include "RoutePath.hpp"
+#include "../../utils/FileUtils.hpp"
 #include <cstdio>
 #include <ctime>
 #include <fstream>
@@ -204,7 +206,7 @@ HttpResponse StaticHandler::_handlePost(const HttpRequest &request, const RouteR
         fileContent = fileContent.substr(dataStart, dataEnd - dataStart);
     }
 
-    filePath = _joinPath(uploadDir, fileName);
+    filePath = FileUtils::joinPath(uploadDir, fileName);
 
     if (!_writeFile(filePath, fileContent))
         return HttpResponse::makeErrorResponse(500);
@@ -244,53 +246,19 @@ bool StaticHandler::_isAutoIndexEnabled(const RouteResult &route) const
     return false;
 }
 
-std::string StaticHandler::_joinPath(const std::string &root, const std::string &path) const
-{
-    if (root.empty())
-        return path;
-
-    if (path.empty())
-        return root;
-
-    if (root[root.length() - 1] == '/' && path[0] == '/')
-        return root + path.substr(1);
-    
-    if (root[root.length() - 1] != '/' && path[0] != '/')
-        return root + "/" + path;
-
-    return root + path;
-}
-
-std::string StaticHandler::_buildFilePath(const HttpRequest &request, const RouteResult &route) const
-{
-    std::string root;
-    std::string path;
-    std::string locationPath;
-
-    root = _getRoot(route);
-    path = request.getPath();
-
-    if (route.location)
-        locationPath = route.location->path;
-
-    if (locationPath != "/" && path.compare(0, locationPath.length(), locationPath) == 0)
-        path = path.substr(locationPath.length());
-
-    return _joinPath(root, path);
-}
-
 std::string StaticHandler::_resolveGetPath(const HttpRequest &request, const RouteResult &route) const
 {
     std::string filePath;
     std::string indexPath;
 
-    filePath = _buildFilePath(request, route);
+    filePath = RoutePath::resolve(request, route);
 
-    if (_isDirectory(filePath))
+    if (FileUtils::isDirectory(filePath))
     {
-        indexPath = _joinPath(filePath, _getIndex(route));
+        indexPath = FileUtils::joinPath(filePath, _getIndex(route));
 
-        if (_fileExists(indexPath) && !_isDirectory(indexPath))
+        if (FileUtils::exists(indexPath)
+            && !FileUtils::isDirectory(indexPath))
             return indexPath;
     }
     return filePath;
@@ -299,48 +267,6 @@ std::string StaticHandler::_resolveGetPath(const HttpRequest &request, const Rou
 bool StaticHandler::_containsPathTraversal(const std::string &path) const
 {
     return path.find("..") != std::string::npos;
-}
-
-bool StaticHandler::_isDirectory(const std::string &path) const
-{
-    struct stat st;
-
-    if (stat(path.c_str(), &st) != 0)
-        return false;
-
-    return S_ISDIR(st.st_mode);
-}
-
-bool StaticHandler::_fileExists(const std::string &path) const
-{
-    struct stat st;
-
-    if (stat(path.c_str(), &st) != 0)
-        return false;
-
-    return true;
-}
-
-bool StaticHandler::_readFile(const std::string &path, std::string &out) const
-{
-    std::ifstream file;
-    std::ostringstream content;
-
-    file.open(path.c_str(), std::ios::in | std::ios::binary);
-    if (!file.is_open())
-        return false;
-    
-    content << file.rdbuf();
-
-    if (file.bad())
-    {
-        file.close();
-        return false;
-    }
-
-    file.close();
-    out = content.str();
-    return true;
 }
 
 HttpResponse StaticHandler::_handleGet(const HttpRequest &request, const RouteResult &route)
@@ -354,10 +280,10 @@ HttpResponse StaticHandler::_handleGet(const HttpRequest &request, const RouteRe
     
     filePath = _resolveGetPath(request, route);
 
-    if (!_fileExists(filePath))
+    if (!FileUtils::exists(filePath))
         return HttpResponse::makeErrorResponse(404);
 
-    if (_isDirectory(filePath))
+    if (FileUtils::isDirectory(filePath))
     {
         if (_isAutoIndexEnabled(route))
             return _autoIndex.generate(filePath, request.getPath());
@@ -365,7 +291,7 @@ HttpResponse StaticHandler::_handleGet(const HttpRequest &request, const RouteRe
         return HttpResponse::makeErrorResponse(404);
     }
 
-    if (!_readFile(filePath, body))
+    if (!FileUtils::readFile(filePath, body))
         return HttpResponse::makeErrorResponse(403);
 
     response.setStatus(200);
@@ -382,12 +308,12 @@ HttpResponse StaticHandler::_handleDelete(const HttpRequest &request, const Rout
     if (_containsPathTraversal(request.getPath()))
         return HttpResponse::makeErrorResponse(403);
 
-    filePath = _buildFilePath(request, route);
+    filePath = RoutePath::resolve(request, route);
 
-    if (!_fileExists(filePath))
+    if (!FileUtils::exists(filePath))
         return HttpResponse::makeErrorResponse(404);
 
-    if (_isDirectory(filePath))
+    if (FileUtils::isDirectory(filePath))
         return HttpResponse::makeErrorResponse(403);
 
     if (std::remove(filePath.c_str()) != 0)
@@ -395,17 +321,6 @@ HttpResponse StaticHandler::_handleDelete(const HttpRequest &request, const Rout
 
     response.setStatus(204);
     return response;
-}
-
-std::string StaticHandler::_getRoot(const RouteResult &route) const
-{
-    if (route.location && route.location->hasRoot)
-        return route.location->root;
-    
-    if (route.server && route.server->hasRoot)
-        return route.server->root;
-
-    return "www";
 }
 
 std::string StaticHandler::_getIndex(const RouteResult &route) const

@@ -17,7 +17,6 @@
 #include <ctime>
 #include <iostream>
 #include <sstream>
-#include "../utils/Utils.hpp"
 
 typedef void (*DataCallback)(void *ctx, ConnectionSlot &slot);
 typedef void (*FdCallback)(void *ctx, int fd, short revents);

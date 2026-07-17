@@ -25,9 +25,6 @@ class HttpParser
     private:
         size_t _maxBodySize;
 
-        std::string trim(const std::string& str) const;
-        std::string toLower(const std::string& str) const;
-
         bool isTokenChar(char c) const;
         bool isValidMethodToken(const std::string& method) const;
         bool isValidHeaderName(const std::string& key) const;

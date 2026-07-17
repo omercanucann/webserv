@@ -13,11 +13,6 @@ class PollReactor;
 class CgiHandler
 {
     private:
-        std::string _buildScriptPath(const HttpRequest &request, const RouteResult &route) const;
-
-        bool _fileExists(const std::string &path) const;
-        bool _isDirectory(const std::string &path) const;
-
         PollReactor *_reactor;
         std::vector<CgiSession> _sessions;
 
@@ -33,9 +28,6 @@ class CgiHandler
 
         bool _parseOutputFile(const CgiSession &session, HttpResponse &response,
                               size_t &bodyOffset, size_t &bodyLength) const;
-        std::string _trim(const std::string &str) const;
-        std::string _toLower(const std::string &str) const;
-        std::string _sizeToString(size_t value) const;
         int _parseStatusCode(const std::string &value) const;
     public:
         CgiHandler();

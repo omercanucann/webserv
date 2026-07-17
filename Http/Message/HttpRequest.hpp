@@ -17,7 +17,6 @@ class HttpRequest
 		size_t      _bodySize;
 		bool        _bodyStoredInFile;
 
-		std::string toLower(const std::string& str) const;
 	public:
 		HttpRequest();
 

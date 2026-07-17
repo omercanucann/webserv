@@ -1,4 +1,5 @@
 #include "MimeTypes.hpp"
+#include "../../utils/StringUtils.hpp"
 
 MimeTypes::MimeTypes()
 {
@@ -22,22 +23,6 @@ MimeTypes::MimeTypes()
     _types["mp4"] = "video/mp4";
 }
 
-std::string MimeTypes::toLower(const std::string& str) const
-{
-    std::string result;
-    size_t i;
-
-    result = str;
-    i = 0;
-    while (i < result.length())
-    {
-        if (result[i] >= 'A' && result[i] <= 'Z')
-            result[i] = result[i] + 32;
-        i++;
-    }
-    return result;
-}
-
 std::string MimeTypes::getExtension(const std::string& path) const
 {
     size_t dotPos;
@@ -55,7 +40,7 @@ std::string MimeTypes::getExtension(const std::string& path) const
     if (dotPos == path.length() - 1)
         return "";
 
-    return toLower(path.substr(dotPos + 1));
+    return StringUtils::toLowerAscii(path.substr(dotPos + 1));
 }
 
 std::string MimeTypes::getMimeType(const std::string& path) const

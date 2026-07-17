@@ -1,6 +1,7 @@
 #include "HttpRequestHandler.hpp"
 #include "HttpFraming.hpp"
 #include "../../utils/FileUtils.hpp"
+#include "../../utils/StringUtils.hpp"
 #include <cstdio>
 #include <unistd.h>
 
@@ -393,7 +394,8 @@ bool HttpRequestHandler::_startCgiBodyStream(int slot_index,
 		return false;
 	handled = true;
 
-	transferEncoding = HttpFraming::toLower(request.getHeader("Transfer-Encoding"));
+	transferEncoding = StringUtils::toLowerAscii(
+		request.getHeader("Transfer-Encoding"));
 	isChunked = transferEncoding.find("chunked") != std::string::npos;
 	contentLength = request.getHeader("Content-Length");
 	hasContentLength = !contentLength.empty();

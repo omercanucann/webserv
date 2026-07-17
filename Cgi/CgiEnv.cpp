@@ -1,15 +1,9 @@
 #include "CgiEnv.hpp"
+#include "../utils/StringUtils.hpp"
 
 CgiEnv::CgiEnv()
 {
 
-}
-
-std::string CgiEnv::_toString(size_t value) const
-{
-    std::ostringstream oss;
-    oss << value;
-    return oss.str();
 }
 
 void CgiEnv::_add(const std::string &key, const std::string &value)
@@ -31,11 +25,11 @@ char **CgiEnv::build(const HttpRequest &request, const RouteResult &route, const
     _add("SERVER_NAME", "localhost");
 
     if (route.server)
-        _add("SERVER_PORT", _toString(route.server->listenPort));
+        _add("SERVER_PORT", StringUtils::sizeToString(route.server->listenPort));
     if (request.hasHeader("Content-Type"))
         _add("CONTENT_TYPE", request.getHeader("Content-Type"));
     if (request.getMethod() == "POST")
-        _add("CONTENT_LENGTH", _toString(request.getBodySize()));
+        _add("CONTENT_LENGTH", StringUtils::sizeToString(request.getBodySize()));
     if (request.hasHeader("X-Secret-Header-For-Test"))
         _add("HTTP_X_SECRET_HEADER_FOR_TEST", request.getHeader("X-Secret-Header-For-Test"));
     

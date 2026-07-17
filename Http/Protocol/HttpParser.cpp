@@ -1,4 +1,5 @@
 #include "HttpParser.hpp"
+#include "../../utils/StringUtils.hpp"
 #include <sstream>
 
 HttpParser::ParseException::ParseException(int statusCode, const std::string& message)
@@ -28,35 +29,6 @@ HttpParser::HttpParser()
 HttpParser::HttpParser(size_t maxBodySize)
     : _maxBodySize(maxBodySize)
 {
-}
-
-std::string HttpParser::trim(const std::string& str) const
-{
-    size_t start;
-    size_t end;
-
-    start = str.find_first_not_of(" \t\r\n");
-    if (start == std::string::npos)
-        return "";
-
-    end = str.find_last_not_of(" \t\r\n");
-    return str.substr(start, end - start + 1);
-}
-
-std::string HttpParser::toLower(const std::string& str) const
-{
-    std::string result;
-    size_t i;
-
-    result = str;
-    i = 0;
-    while (i < result.length())
-    {
-        if (result[i] >= 'A' && result[i] <= 'Z')
-            result[i] = result[i] + 32;
-        i++;
-    }
-    return result;
 }
 
 bool HttpParser::isTokenChar(char c) const
@@ -254,8 +226,8 @@ void HttpParser::parseHeaderLine(const std::string& line, HttpRequest& request) 
     if (colonPos == std::string::npos)
         throw ParseException(400, "Malformed header line");
 
-    key = trim(line.substr(0, colonPos));
-    value = trim(line.substr(colonPos + 1));
+    key = StringUtils::trim(line.substr(0, colonPos), " \t\r\n");
+    value = StringUtils::trim(line.substr(colonPos + 1), " \t\r\n");
 
     if (!isValidHeaderName(key))
         throw ParseException(400, "Invalid header name");
@@ -286,7 +258,7 @@ std::string HttpParser::decodeChunkedBody(const std::string& body) const
         if (semicolonPos != std::string::npos)
             sizeLine = sizeLine.substr(0, semicolonPos);
 
-        sizeLine = trim(sizeLine);
+        sizeLine = StringUtils::trim(sizeLine, " \t\r\n");
         chunkSize = hexToSize(sizeLine);
 
         pos = lineEnd + 2;
@@ -325,7 +297,8 @@ void HttpParser::validateBodyRules(HttpRequest& request, const std::string& rawB
     std::string body;
 
     hasContentLength = request.hasHeader("Content-Length");
-    transferEncoding = toLower(request.getHeader("Transfer-Encoding"));
+    transferEncoding = StringUtils::toLowerAscii(
+        request.getHeader("Transfer-Encoding"));
     isChunked = transferEncoding.find("chunked") != std::string::npos;
 
     if (hasContentLength && isChunked)
@@ -340,7 +313,8 @@ void HttpParser::validateBodyRules(HttpRequest& request, const std::string& rawB
 
     if (hasContentLength)
     {
-        contentLength = stringToSize(trim(request.getHeader("Content-Length")));
+        contentLength = stringToSize(StringUtils::trim(
+            request.getHeader("Content-Length"), " \t\r\n"));
 
         if (contentLength > _maxBodySize)
             throw ParseException(413, "Request body too large");

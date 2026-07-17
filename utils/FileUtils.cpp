@@ -1,6 +1,9 @@
 #include "FileUtils.hpp"
 #include <cstdio>
 #include <fcntl.h>
+#include <fstream>
+#include <sstream>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <vector>
 
@@ -45,4 +48,55 @@ bool FileUtils::writeAll(int fd, const char *data, size_t size)
             return false;
     }
     return true;
+}
+
+bool FileUtils::exists(const std::string &path)
+{
+    struct stat st;
+
+    return stat(path.c_str(), &st) == 0;
+}
+
+bool FileUtils::isDirectory(const std::string &path)
+{
+    struct stat st;
+
+    if (stat(path.c_str(), &st) != 0)
+        return false;
+    return S_ISDIR(st.st_mode);
+}
+
+bool FileUtils::readFile(const std::string &path, std::string &out)
+{
+    std::ifstream file;
+    std::ostringstream content;
+
+    file.open(path.c_str(), std::ios::in | std::ios::binary);
+    if (!file.is_open())
+        return false;
+
+    content << file.rdbuf();
+    if (file.bad())
+    {
+        file.close();
+        return false;
+    }
+
+    file.close();
+    out = content.str();
+    return true;
+}
+
+std::string FileUtils::joinPath(const std::string &root,
+                                const std::string &path)
+{
+    if (root.empty())
+        return path;
+    if (path.empty())
+        return root;
+    if (root[root.length() - 1] == '/' && path[0] == '/')
+        return root + path.substr(1);
+    if (root[root.length() - 1] != '/' && path[0] != '/')
+        return root + "/" + path;
+    return root + path;
 }

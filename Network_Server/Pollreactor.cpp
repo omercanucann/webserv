@@ -1,9 +1,10 @@
 #include "Pollreactor.hpp"
 #include <fcntl.h>
+#include <cstring>
 
 PollReactor::PollReactor(): _slot_count(0), _server_count(0), _on_data(NULL), _on_write(NULL), _on_close(NULL), _on_timeout(NULL), _cb_ctx(NULL), _running(false), _sweep_counter(0)
 {
-    ft_memset(_pollfds, 0, sizeof(_pollfds));
+    std::memset(_pollfds, 0, sizeof(_pollfds));
     for (int i = 0; i < MAX_SLOTS; ++i)
         _pollfds[i].fd = -1;
  

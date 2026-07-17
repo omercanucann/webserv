@@ -1,10 +1,11 @@
 #include "CgiHandler.hpp"
 #include "StatusCode.hpp"
+#include "RoutePath.hpp"
 #include "../../Cgi/CgiEnv.hpp"
 #include "../../Cgi/CgiProcess.hpp"
 #include "../../Network_Server/Pollreactor.hpp"
 #include "../../utils/FileUtils.hpp"
-#include <sys/stat.h>
+#include "../../utils/StringUtils.hpp"
 #include <sys/wait.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -21,59 +22,6 @@ CgiHandler::CgiHandler() : _reactor(NULL)
 void CgiHandler::setReactor(PollReactor *reactor)
 {
     _reactor = reactor;
-}
-
-std::string CgiHandler::_buildScriptPath(const HttpRequest &request, const RouteResult &route) const
-{
-    std::string root;
-    std::string path;
-    std::string locationPath;
-
-    if (route.location && route.location->hasRoot)
-        root = route.location->root;
-    else if (route.server && route.server->hasRoot)
-        root = route.server->root;
-    else
-        root = "www";
-
-    path = request.getPath();
-
-    if (route.location)
-        locationPath = route.location->path;
-
-    if (locationPath != "/" && path.compare(0, locationPath.length(), locationPath) == 0)
-        path = path.substr(locationPath.length());
-
-    if (path.empty())
-        return root;
-
-    if (root[root.length() - 1] == '/' && path[0] == '/')
-        return root + path.substr(1);
-
-    if (root[root.length() - 1] != '/' && path[0] != '/')
-        return root + "/" + path;
-
-    return root + path;
-}
-
-bool CgiHandler::_fileExists(const std::string &path) const
-{
-    struct stat st;
-
-    if (stat(path.c_str(), &st) != 0)
-        return false;
-
-    return true;
-}
-
-bool CgiHandler::_isDirectory(const std::string &path) const
-{
-    struct stat st;
-
-    if (stat(path.c_str(), &st) != 0)
-        return false;
-
-    return S_ISDIR(st.st_mode);
 }
 
 void CgiHandler::_closeOutputFile(CgiSession &session)
@@ -401,16 +349,16 @@ bool CgiHandler::start(int clientSlot, const HttpRequest &request, const RouteRe
         return true;
     }
 
-    scriptPath = _buildScriptPath(request, route);
+    scriptPath = RoutePath::resolve(request, route);
 
-    if (!_fileExists(scriptPath))
+    if (!FileUtils::exists(scriptPath))
     {
         response = HttpResponse::makeErrorResponse(404);
         _reactor->queue_response(clientSlot, response.toString());
         return true;
     }
 
-    if (_isDirectory(scriptPath))
+    if (FileUtils::isDirectory(scriptPath))
     {
         response = HttpResponse::makeErrorResponse(403);
         _reactor->queue_response(clientSlot, response.toString());
@@ -548,48 +496,6 @@ bool CgiHandler::timeoutClientSessions(int clientSlot)
 
 
 
-std::string CgiHandler::_trim(const std::string &str) const
-{
-    size_t start;
-    size_t end;
-
-    start = 0;
-    while (start < str.length()
-        && (str[start] == ' ' || str[start] == '\t' || str[start] == '\r'))
-        start++;
-
-    end = str.length();
-    while (end > start
-        && (str[end - 1] == ' ' || str[end - 1] == '\t' || str[end - 1] == '\r'))
-        end--;
-
-    return str.substr(start, end - start);
-}
-
-std::string CgiHandler::_toLower(const std::string &str) const
-{
-    std::string result;
-    size_t i;
-
-    result = str;
-    i = 0;
-    while (i < result.length())
-    {
-        if (result[i] >= 'A' && result[i] <= 'Z')
-            result[i] = result[i] + 32;
-        i++;
-    }
-    return result;
-}
-
-std::string CgiHandler::_sizeToString(size_t value) const
-{
-    std::ostringstream stream;
-
-    stream << value;
-    return stream.str();
-}
-
 int CgiHandler::_parseStatusCode(const std::string &value) const
 {
     int code;
@@ -673,7 +579,8 @@ bool CgiHandler::_parseOutputFile(const CgiSession &session, HttpResponse &respo
         response.setHeader("Content-Type", "text/plain");
         bodyOffset = 0;
         bodyLength = session.outputSize;
-        response.setHeader("Content-Length", _sizeToString(bodyLength));
+        response.setHeader("Content-Length",
+            StringUtils::sizeToString(bodyLength));
         return true;
     }
 
@@ -697,11 +604,12 @@ bool CgiHandler::_parseOutputFile(const CgiSession &session, HttpResponse &respo
             continue;
 
         std::string key = line.substr(0, colonPos);
-        std::string value = _trim(line.substr(colonPos + 1));
+        std::string value = StringUtils::trim(
+            line.substr(colonPos + 1), " \t\r");
 
         if (key == "Status")
             response.setStatus(_parseStatusCode(value));
-        else if (_toLower(key) != "content-length")
+        else if (StringUtils::toLowerAscii(key) != "content-length")
             response.setHeader(key, value);
     }
 
@@ -710,6 +618,6 @@ bool CgiHandler::_parseOutputFile(const CgiSession &session, HttpResponse &respo
 
     if (!StatusCode::isBodyAllowed(response.getStatusCode()))
         bodyLength = 0;
-    response.setHeader("Content-Length", _sizeToString(bodyLength));
+    response.setHeader("Content-Length", StringUtils::sizeToString(bodyLength));
     return true;
 }
