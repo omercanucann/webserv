@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Bağımsız CGI Testi</title>
+</head>
+<body>
+    <h1>Python CGI Testi</h1>
+
+    <label for="cgi-body">POST body:</label>
+    <br>
+    <textarea id="cgi-body" rows="4" cols="50">name=webserv&mode=post</textarea>
+    <br>
+    <button type="button" onclick="sendCgiPost()">CGI POST Gönder</button>
+
+    <pre id="result">Henüz istek gönderilmedi.</pre>
+
+    <script>
+        function sendCgiPost() {
+            fetch("/cgi/echo.py", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: document.getElementById("cgi-body").value
+            })
+                .then(function (response) {
+                    return response.text().then(function (body) {
+                        document.getElementById("result").textContent =
+                            "HTTP " + response.status + " " + response.statusText
+                            + "\n\n" + body;
+                    });
+                })
+                .catch(function (error) {
+                    document.getElementById("result").textContent =
+                        "İstek başarısız: " + error;
+                });
+        }
+    </script>
+</body>
+</html>
