@@ -16,8 +16,14 @@ char **CgiEnv::build(const HttpRequest &request, const RouteResult &route, const
     _envStrings.clear();
     _envp.clear();
     size_t i = 0;
+    std::string requestUri;
 
+    requestUri = request.getPath();
+    if (!request.getQuery().empty())
+        requestUri += "?" + request.getQuery();
     _add("REQUEST_METHOD", request.getMethod());
+    _add("SERVER_PROTOCOL", request.getVersion());
+    _add("REQUEST_URI", requestUri);
     _add("QUERY_STRING", request.getQuery());
     _add("SCRIPT_FILENAME", scriptPath);
     _add("SCRIPT_NAME", request.getPath());

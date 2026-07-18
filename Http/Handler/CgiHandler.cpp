@@ -365,7 +365,7 @@ bool CgiHandler::start(int clientSlot, const HttpRequest &request, const RouteRe
         return true;
     }
 
-    envp = env.build(request, route, scriptPath, "");
+    envp = env.build(request, route, scriptPath, request.getPath());
 
     outputFd = -1;
     if (!FileUtils::createTempFile("cgi_out", outputFd, outputPath))
