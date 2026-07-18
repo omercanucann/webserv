@@ -29,22 +29,18 @@ class HttpRequestHandler : public IRequestHandler
         CgiHandler _cgiHandler;
         PollReactor *_reactor;
 
-        // Per-connection state used only while a CGI request body is streaming.
         struct BodyStreamState;
         std::map<int, BodyStreamState *> _bodyStreams;
 
-        // Header-only checks that may reject a request before its body arrives.
         bool        _parseHeaderOnlyRequest(const std::string &rawRequest, HttpRequest &request) const;
         bool        _makePreflightResponse(const std::string &rawRequest, HttpResponse &response) const;
         bool        _makePreflightResponse(const std::vector<char> &rawRequest, HttpResponse &response) const;
         void        _sendContinueIfNeeded(ConnectionSlot &slot);
 
-        // Response creation and synchronous/asynchronous dispatch.
         HttpResponse _makeErrorResponse(int statusCode, const ServerConfig *server) const;
         bool         _dispatchRequest(int slot_index, const HttpRequest &request, HttpResponse &response);
         void         _storeFinalResponse(ConnectionSlot &slot, HttpResponse &response) const;
 
-        // CGI request-body streaming. Implemented in HttpRequestHandlerCgi.cpp.
         bool        _handleCgiBodyStream(int slot_index, ConnectionSlot &slot, bool &handled);
         bool        _startCgiBodyStream(int slot_index, ConnectionSlot &slot, bool &handled);
         bool        _processCgiBodyStream(int slot_index, ConnectionSlot &slot);

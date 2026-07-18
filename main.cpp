@@ -30,7 +30,7 @@ int main(int argc, char* argv[])
     }
     catch (const ConfigParser::ParseException &e)
     {
-        std::cerr << "[main] Config hatasi: " << e.what() << std::endl;
+        std::cerr << "[main] Config error: " << e.what() << std::endl;
         return 1;
     }
 
@@ -49,17 +49,17 @@ int main(int argc, char* argv[])
         if (!(reactor->add_server(config.servers[i].listenHost,config.servers[i].listenPort)))
         {
             std::cerr << "[main] Port " << config.servers[i].listenPort
-                << " acilamadi" << std::endl;
+                << " can't open" << std::endl;
             return 1;
         }
         i++;
     }
     
 
-    std::cerr << "[main] Sunucu hazir. Port(lar) dinleniyor..." << std::endl;
-    std::cerr << "[main] Durdurmak icin Ctrl+C" << std::endl;
+    std::cerr << "[main] Server is ready. Ports are listening..." << std::endl;
+    std::cerr << "[main] For stop Ctrl+C" << std::endl;
     reactor->run();
 
-    std::cerr << "[main] Temiz cikis" << std::endl;
+    std::cerr << "[main] Clearly exit" << std::endl;
     return 0;
 }

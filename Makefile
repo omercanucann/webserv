@@ -1,8 +1,3 @@
-# ══════════════════════════════════════════════════════════════════════
-# Webserv Makefile
-# C++98, -Wall -Wextra -Werror
-# ══════════════════════════════════════════════════════════════════════
-
 NAME    := webserv
 CXX     := c++
 CXXFLAGS := -Wall -Wextra -Werror -std=c++98
@@ -43,11 +38,8 @@ SRCS    :=  main.cpp                      \
 
 OBJS    := $(patsubst %.cpp, $(OBJDIR)/%.o, $(notdir $(SRCS)))
 
-# ── Renkler (isteğe bağlı, terminalde güzel görünür) ─────────────────
 GREEN  := \033[0;32m
 RESET  := \033[0m
-
-# ── Hedefler ─────────────────────────────────────────────────────────
 
 all: $(NAME)
 
@@ -106,7 +98,6 @@ fclean: clean
 
 re: fclean all
 
-# Yeniden linklemeyi önle: header değişince sadece bağımlı .o yeniden derlenir
 $(OBJDIR)/main.o:          Network_Server/Pollreactor.hpp Network_Server/Reactorbridge.hpp Http/Handler/HttpRequestHandler.hpp
 $(OBJDIR)/Socketbinder.o:  Network_Server/Socketbinder.hpp Network_Server/Nettypes.hpp
 $(OBJDIR)/Pollreactor.o:   Network_Server/Pollreactor.hpp Network_Server/Connectionslot.hpp
