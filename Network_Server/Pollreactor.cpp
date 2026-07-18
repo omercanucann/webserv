@@ -51,7 +51,7 @@ bool PollReactor::add_server(const std::string &host, uint16_t port)
     _slots[slot_index].state       = ConnectState_READING;
     _slots[slot_index].fd          = listen_fd;
     _slots[slot_index].is_server   = true;
-    _slots[slot_index].last_active = time(NULL);
+    _slots[slot_index].last_active = std::time(NULL);
  
     _pollfds[slot_index].fd     = listen_fd;
     _pollfds[slot_index].events = POLLIN;
