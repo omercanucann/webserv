@@ -1,35 +1,43 @@
 #include "FileUtils.hpp"
 #include <cstdlib>
 #include <cstdio>
+#include <ctime>
 #include <fcntl.h>
 #include <fstream>
 #include <sstream>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <vector>
 
 bool FileUtils::createTempFile(const std::string &prefix,
                                int &fd,
                                std::string &path)
 {
-    std::string pattern;
-    std::vector<char> buffer;
+    static unsigned long counter = 0;
+    unsigned int attempt;
 
-    pattern = "/tmp/webserv_" + prefix + "_XXXXXX";
-    buffer.assign(pattern.begin(), pattern.end());
-    buffer.push_back('\0');
+    fd = -1;
+    for (attempt = 0; attempt < 100 && fd < 0; ++attempt)
+    {
+        std::ostringstream name;
 
-    fd = ::mkstemp(&buffer[0]);
-    if (fd < 0)
+        name << "/tmp/webserv_" << prefix << "_"
+             << std::time(NULL) << "_" << counter++;
+        path = name.str();
+        fd = open(path.c_str(), O_RDWR | O_CREAT | O_EXCL, 0600);
+    }
+    if (fd == -1)
+    {
+        path.clear();
         return false;
+    }
     if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
     {
         close(fd);
         fd = -1;
-        std::remove(&buffer[0]);
+        std::remove(path.c_str());
+        path.clear();
         return false;
     }
-    path = &buffer[0];
     return true;
 }
 
