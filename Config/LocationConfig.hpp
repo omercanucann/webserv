@@ -21,8 +21,6 @@ struct LocationConfig
 
     bool autoindex;
     bool hasAutoIndex;
-    // autoindex ve hasautoindex false ise location tanımlanmadı.
-    // autoindex false, hasAutoindex true ise location içinde doğrudan off verildi.
 
     int redirectStatus;
     bool hasRedirect;
