@@ -8,45 +8,28 @@ volatile sig_atomic_t SignalHandler::_child_terminated = 0;
 
 void SignalHandler::install()
 {
-    struct sigaction sa;
-    struct sigaction oldsa;
+    if (signal(SIGINT, _handler) == SIG_ERR)
+        std::cerr << "[SignalHandler] SIGINT installation failed." << std::endl;
 
-    std::memset(&sa, 0, sizeof(sa));
+    if (signal(SIGTERM, _handler) == SIG_ERR)
+        std::cerr << "[SignalHandler] SIGTERM installation failed." << std::endl;
 
-    sa.sa_handler = _handler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
+    if (signal(SIGQUIT, _handler) == SIG_ERR)
+        std::cerr << "[SignalHandler] SIGQUIT installation failed." << std::endl;
 
-    if (sigaction(SIGINT, &sa, &oldsa) < 0)
-        std::cerr << "[SignalHandler] SIGINT Installation failed.z" << std::endl;
+    if (signal(SIGABRT, _handler) == SIG_ERR)
+        std::cerr << "[SignalHandler] SIGABRT installation failed." << std::endl;
 
-    if (sigaction(SIGTERM, &sa, &oldsa) < 0) 
-        std::cerr << "[SignalHandler] SIGTERM Installation failed.z" << std::endl;
+    if (signal(SIGHUP, _handler) == SIG_ERR)
+        std::cerr << "[SignalHandler] SIGHUP installation failed." << std::endl;
 
-    if (sigaction(SIGQUIT, &sa, &oldsa) < 0)
-        std::cerr << "[SignalHandler] SIGQUIT Installation failed.z" << std::endl;
+    if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
+        std::cerr << "[SignalHandler] SIGPIPE installation failed." << std::endl;
 
-    if (sigaction(SIGABRT, &sa, &oldsa) < 0)
-        std::cerr << "[SignalHandler] SIGABRT Installation failed.z" << std::endl;
+    if (signal(SIGCHLD, _child_handler) == SIG_ERR)
+        std::cerr << "[SignalHandler] SIGCHLD installation failed." << std::endl;
 
-    if (sigaction(SIGHUP, &sa, &oldsa) < 0)
-        std::cerr << "[SignalHandler] SIGHUP Installation failed.z" << std::endl;
-
-    std::memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = SIG_IGN;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    if (sigaction(SIGPIPE, &sa, &oldsa) < 0)
-        std::cerr << "[SignalHandler] SIGPIPE Installation failed.z" << std::endl;
-
-    std::memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = _child_handler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    if (sigaction(SIGCHLD, &sa, &oldsa) < 0)
-        std::cerr << "[SignalHandler] SIGCHLD Installation failed.z" << std::endl;
-
-    std::cout << "[SignalHandler] All signals have been established: " << std::endl;
+    std::cout << "[SignalHandler] All signals have been established:" << std::endl;
     std::cout << "  - SIGINT (Ctrl+C)" << std::endl;
     std::cout << "  - SIGTERM (kill)" << std::endl;
     std::cout << "  - SIGQUIT (Ctrl+\\)" << std::endl;
