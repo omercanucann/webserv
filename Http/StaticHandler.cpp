@@ -29,17 +29,14 @@ bool StaticHandler::_isBodyTooLarge(const HttpRequest &request, const RouteResul
     return false;
 }
 
-bool StaticHandler::_ensureDirectory(const std::string &path) const
+bool StaticHandler::_directoryExists(const std::string &path) const
 {
     struct stat st;
 
-    if (stat(path.c_str(), &st) == 0)
-        return S_ISDIR(st.st_mode);
-
-    if (mkdir(path.c_str(), 0755) != 0)
+    if (stat(path.c_str(), &st) != 0)
         return false;
 
-    return true;
+    return S_ISDIR(st.st_mode);
 }
 
 bool StaticHandler::_writeFile(const std::string &path, const std::string &content) const
@@ -108,7 +105,7 @@ HttpResponse StaticHandler::_handlePost(const HttpRequest &request, const RouteR
 
     uploadDir = _getUploadPath(route);
 
-    if (!_ensureDirectory(uploadDir))
+    if (!_directoryExists(uploadDir))
         return HttpResponse::makeErrorResponse(500);
 
     fileContent = request.getBody();

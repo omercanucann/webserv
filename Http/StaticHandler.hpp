@@ -44,7 +44,7 @@ class StaticHandler
 
 		bool _isUploadEnabled(const RouteResult &route) const;
 		bool _isBodyTooLarge(const HttpRequest &request, const RouteResult &route) const;
-		bool _ensureDirectory(const std::string &path) const;
+		bool _directoryExists(const std::string &path) const;
 		bool _writeFile(const std::string &path, const std::string &content) const;
 		std::string _getUploadPath(const RouteResult &route) const;
 		std::string _generateUploadFileName() const;
