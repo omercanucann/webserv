@@ -19,7 +19,7 @@ int main(int argc, char* argv[])
     else if (argc == 1)
         configPath = "configs/default.conf";
     else
-        exit (1);
+        return (1);
 
     ConfigParser parser;
     Config config;

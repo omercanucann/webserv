@@ -70,7 +70,7 @@ bool CgiProcess::start(const std::string &interpreter, const std::string &script
         argv[2] = NULL;
 
         execve(interpreter.c_str(), argv, envp);
-        exit(1);
+        std::exit(1);
     }
 
     close(inPipeWC[0]);
@@ -137,7 +137,7 @@ bool CgiProcess::startWithInputFile(const std::string &interpreter,
         argv[2] = NULL;
 
         execve(interpreter.c_str(), argv, envp);
-        exit(1);
+        std::exit(1);
     }
 
     close(inputFd);

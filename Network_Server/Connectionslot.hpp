@@ -129,7 +129,7 @@ public:
     bool timed_out() const
     {
         if (last_active == 0) return false;
-        return (time(NULL) - last_active) > CONNECT_IDLE_TIMEOUT;
+        return (std::time(NULL) - last_active) > CONNECT_IDLE_TIMEOUT;
     }
  
     void queue_response(const std::vector<char> &data)
@@ -188,7 +188,7 @@ public:
         }
     }
  
-    void touch() { last_active = time(NULL); }
+    void touch() { last_active = std::time(NULL); }
 };
 
 #endif

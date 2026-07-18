@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+import os
+import sys
+
+sys.stdout.write("Content-Type: text/plain\r\n\r\n")
+sys.stdout.flush()
+
+remaining = int(os.environ.get("CONTENT_LENGTH", "0") or "0")
+secret = os.environ.get("HTTP_X_SECRET_HEADER_FOR_TEST", "")
+while remaining > 0:
+    chunk = sys.stdin.buffer.read(min(262144, remaining))
+    if not chunk:
+        break
+    remaining -= len(chunk)
+    if secret:
+        sys.stdout.buffer.write(secret[:1].encode() * len(chunk))
+    else:
+        sys.stdout.buffer.write(chunk.upper())
+    sys.stdout.buffer.flush()

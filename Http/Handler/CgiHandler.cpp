@@ -406,7 +406,7 @@ bool CgiHandler::start(int clientSlot, const HttpRequest &request, const RouteRe
     session.outputFileFd = outputFd;
     session.outputFilePath = outputPath;
     session.outputSize = 0;
-    session.startedAt = time(NULL);
+    session.startedAt = std::time(NULL);
 
     _sessions.push_back(session);
     CgiSession &stored = _sessions.back();

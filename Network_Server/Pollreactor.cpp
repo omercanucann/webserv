@@ -52,7 +52,7 @@ bool PollReactor::add_server(const std::string &host, uint16_t port)
     _slots[slot_index].state       = ConnectState_READING;
     _slots[slot_index].fd          = listen_fd;
     _slots[slot_index].is_server   = true;
-    _slots[slot_index].last_active = time(NULL);
+    _slots[slot_index].last_active = std::time(NULL);
  
     _pollfds[slot_index].fd     = listen_fd;
     _pollfds[slot_index].events = POLLIN;
@@ -535,6 +535,8 @@ bool PollReactor::queue_response_file(int slot_index, const std::string &headers
                                       size_t length, bool unlinkAfterSend)
 {
     int fileFd;
+    std::vector<char> skipBuffer;
+    size_t skipped;
 
     if (slot_index < 0 || slot_index >= MAX_SLOTS)
         return false;
@@ -547,10 +549,25 @@ bool PollReactor::queue_response_file(int slot_index, const std::string &headers
     if (fileFd < 0)
         return false;
 
-    if (lseek(fileFd, static_cast<off_t>(offset), SEEK_SET) == static_cast<off_t>(-1))
+    skipped = 0;
+    if (offset > 0)
+        skipBuffer.resize(READ_CHUNK);
+    while (skipped < offset)
     {
-        close(fileFd);
-        return false;
+        size_t chunkSize = offset - skipped;
+        if (chunkSize > skipBuffer.size())
+            chunkSize = skipBuffer.size();
+
+        ssize_t bytesRead = read(fileFd, &skipBuffer[0], chunkSize);
+        if (bytesRead > 0)
+            skipped += static_cast<size_t>(bytesRead);
+        else if (bytesRead < 0 && errno == EINTR)
+            continue;
+        else
+        {
+            close(fileFd);
+            return false;
+        }
     }
 
     slot.clear_response_file();
