@@ -504,6 +504,9 @@ bool PollReactor::queue_response_file(int slot_index, const std::string &headers
                                       size_t length, bool unlinkAfterSend)
 {
     int fileFd;
+    char skipBuffer[READ_CHUNK];
+    size_t skipped;
+    ssize_t bytesRead;
 
     if (slot_index < 0 || slot_index >= MAX_SLOTS)
         return false;
@@ -516,10 +519,22 @@ bool PollReactor::queue_response_file(int slot_index, const std::string &headers
     if (fileFd < 0)
         return false;
 
-    if (lseek(fileFd, static_cast<off_t>(offset), SEEK_SET) == static_cast<off_t>(-1))
+    skipped = 0;
+    while (skipped < offset)
     {
-        close(fileFd);
-        return false;
+        size_t chunkSize = offset - skipped;
+        if (chunkSize > sizeof(skipBuffer))
+            chunkSize = sizeof(skipBuffer);
+        bytesRead = read(fileFd, skipBuffer, chunkSize);
+        if (bytesRead > 0)
+            skipped += static_cast<size_t>(bytesRead);
+        else if (bytesRead < 0 && errno == EINTR)
+            continue;
+        else
+        {
+            close(fileFd);
+            return false;
+        }
     }
 
     slot.clear_response_file();
